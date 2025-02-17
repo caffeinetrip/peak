@@ -1,10 +1,15 @@
 #version 330 core
 
 uniform sampler2D tex;
-uniform sampler2D bg_tex;
 uniform float time;
 uniform vec2 resolution;
 uniform float noise_cof;
+
+uniform float timeScale = 0.25;
+uniform float treshold = 0.3;
+uniform float angleConst = 1.5;
+uniform float stripeWidth = 60;
+uniform float stripeImpact = 0.03;
 
 in vec2 uvs;
 out vec4 f_color;
@@ -17,32 +22,40 @@ float noise(vec2 p) {
     return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+vec4 gradientBackground(vec2 uv) {
+    vec4 color1 = vec4(0.1, 0.0, 0.0, 1.0); 
+    vec4 color2 = vec4(0.1, 0.05, 0.0, 1.0);
+    return mix(color1, color2, 0.0);
+}
+
+vec4 radialGlow(vec2 uv) {
+    float dist = distance(uv, vec2(0.5, 0.5));
+    float glow = smoothstep(0.7, 0.0, dist);
+    return vec4(glow * 0.2);
+}
+
 void main() {
     vec2 uv = uvs;
 
+    vec4 bgColor = gradientBackground(uv);
 
-    float shake = (noise(vec2(time)) - 0.5) * 0.0009;
-    uv.x += shake;
-    uv.y += (noise(vec2(time * 0.5)) - 0.5) * 0.0009;
+    bgColor += radialGlow(uv);
 
-    vec2 offset = vec2(0.001, 0.001);
+    float noiseValue = noise(uv * 10.0 + time * 0.1);
+    bgColor += noiseValue * 0.05;
 
-    vec4 color;
+    bgColor += vec4(sin(time * 0.15) * 0.05, cos(time * 0.13) * 0.05, sin(time * 0.07) * 0.05, 1.0);
 
-    if (texture(tex, uv).r == 0 && texture(tex, uv).g == 0 && texture(tex, uv).b == 0) {
+    vec4 color = vec4(bgColor);
 
-
-        color.r = texture(bg_tex, uv + offset * vec2(-1.0, 0.5) * (1.0 + sin(time))*0.8).r;
-        color.g = texture(bg_tex, uv + offset * vec2(0.0, -0.5) * (1.0 + cos(time))*0.8).g;
-        color.b = texture(bg_tex, uv + offset * vec2(1.0, 0.5) * (1.0 + sin(time))*0.8).b;
-
-
-    } else {
-        color = texture(tex, uv);
-
-        color.r = texture(tex, uv + offset * vec2(-1.0, 0.5) * (1.0 + sin(time))*0.5).r;
-        color.g = texture(tex, uv + offset * vec2(0.0, -0.5) * (1.0 + cos(time))*0.5).g;
-        color.b = texture(tex, uv + offset * vec2(1.0, 0.5) * (1.0 + sin(time))*0.5).b;
+    if (texture(tex, uv).r != 0 && texture(tex, uv).g != 0 && texture(tex, uv).b != 0) {
+        
+        if (texture(tex, uv).a == 0.784) {
+            color = vec4(1.0,0.0,0.0,1.0);
+            //color = mix(bgColor, texture(tex, uv), texture(tex, uv).a);
+        } else {
+            color = texture(tex, uv);
+        }
     }
 
     float scanline = sin(uv.y * 1000.0 + time * 10.0) * 0.05;

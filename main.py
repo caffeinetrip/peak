@@ -22,8 +22,7 @@ class Game():
         self.display_width, self.display_height = 384, 216
         
         self.display = pygame.Surface((self.display_width, self.display_height))
-        
-        self.background_surf = pygame.Surface((self.display_width, self.display_height))
+
         self.main_surf = pygame.Surface((self.display_width, self.display_height))
         self.decoration_surf = pygame.Surface((self.display_width, self.display_height))
         self.ui_surf = pygame.Surface((960, 540))
@@ -45,9 +44,7 @@ class Game():
             'player/wall_slide': Animation('data/assets/Animations/Player/slide/anim1.png'),
             'player/fall': Animation('data/assets/Animations/Player/fall/anim1.png'),
             'player/land': Animation('data/assets/Animations/Player/land/anim1.png', img_dur=20, loop=False),
-            'player/levitation': Animation('data/assets/Animations/Player/levitation/anim1.png', img_dur=10),
-            'player/levitation_start': Animation('data/assets/Animations/Player/levitation/anim2.png', img_dur=10, loop=False),
-            'player/levitation_end': Animation('data/assets/Animations/Player/levitation/anim3.png', img_dur=10, loop=False)
+            'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=20, loop=False),
         }
         
         self.player = Player(self, (50, 50), (8, 15))
@@ -62,9 +59,9 @@ class Game():
         self.load_level(self.level)
         
         self.ui = {
-            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 2 , 'Q'),
-            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 10, 'E'),
-            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 10, 'F'),
+            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
+            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 4, 'E'),
+            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 6, 'F'),
         }
         
         pygame.display.set_caption('stupid-questions')
@@ -88,12 +85,6 @@ class Game():
         while True:
             self.t += self.clock.get_time() / 1000
             
-            if 'X2Gravity' in self.player.buffs or 'X2Speed' in self.player.buffs:
-                self.noise_cof = 0.7
-            else:
-                self.noise_cof = 1.0
-            
-            self.background_surf.fill((198, 183, 190))
             self.ui_surf.fill((0,0,0))
             self.main_surf.fill((0, 0, 0))
             self.decoration_surf.fill((0, 0, 0))
@@ -110,6 +101,8 @@ class Game():
                 self.tileset,
                 offset=render_scroll,
             )
+            
+            tilemap_surf = self.main_surf
             
             # particles
             if self.player.action == 'run':
@@ -212,10 +205,11 @@ class Game():
                 particle.update(self.clock.get_time() / 45)
                 
             for particle in self.particles:
-                particle.draw(self.background_surf, self.scroll)
-
+                particle.draw(self.main_surf, self.scroll)
+                
             self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
             self.player.render(self.main_surf, offset=render_scroll)
+
 
             display_mask = pygame.mask.from_surface(self.display)
             display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
@@ -236,12 +230,15 @@ class Game():
                         self.movement[0] = True
                     if event.key == pygame.K_d:
                         self.movement[1] = True
-                    if event.key == pygame.K_w and self.player.slowdown == 1.0:
-                        self.player.jump()
+                    if event.key == pygame.K_w:
+                        if 'x2jump' in self.player.buffs:
+                            self.player.jump(-1.5)
+                        else:
+                            self.player.jump()
                         
                     if event.key == pygame.K_q and self.ui['glitch_dash'].active:
                         self.button_conditions['glitch_dash'] = True
-                        self.player.form = not self.player.form
+                        self.player.dash()
                         self.ui['glitch_dash'].active = False
                         
                     if event.key == pygame.K_e and self.ui['glitch_jump'].active:
@@ -277,7 +274,6 @@ class Game():
             self.ui_surf.blit(img, (930, 10))
         
             for name, obj in self.ui.items():
-                obj.form = self.player.form
                 state = 'pressed' if (name in self.button_conditions and self.button_conditions[name]) else mpos
                 obj.render(self.ui_surf, state)
             
@@ -288,24 +284,8 @@ class Game():
                     break
             
             screen_surface = pygame.transform.scale(self.display, self.screen.get_size())
-            
-            if 'x2jump' in self.player.buffs:
-                
-                if self.screen_color[0] < 138.0:
-                    self.screen_color[0] += 1.38
-                    self.screen_color[1] += 0.43
-                    self.screen_color[2] += 2.26
 
-            elif self.screen_color[0] > 0.0:
-                self.screen_color[0] *= 0.925
-                self.screen_color[1] *= 0.925
-                self.screen_color[2] *= 0.925
-
-            if self.screen_color[0] < 1:
-                self.screen_color = [0,0,0] 
-            
-            self.main_shader.render(screen_surface, self.ui_surf, self.background_surf, self.t,
-                                    self.screen_color,
+            self.main_shader.render(screen_surface, self.ui_surf, self.t,
                                     self.noise_cof)
             
             pygame.display.flip()

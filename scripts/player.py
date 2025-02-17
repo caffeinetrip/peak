@@ -1,6 +1,5 @@
-import pygame, random
-from scripts.particles import Particle, load_particle_images
-
+import pygame
+from scripts.utils import lerp
 class PhysicsEntity():
     def __init__(self, game, e_type, pos, size):
         self.game = game
@@ -64,7 +63,7 @@ class PhysicsEntity():
             
         self.last_movement = movement
 
-        self.velocity[1] = min(5, self.velocity[1] + 0.1 * self.game.player.slowdown)
+        self.velocity[1] = min(5, self.velocity[1] + 0.1)
         
         if self.collisions['down'] or self.collisions['up']:
             self.velocity[1] = 0
@@ -80,33 +79,28 @@ class Player(PhysicsEntity):
         super().__init__(game, 'player', pos, size)
         self.air_time = 0
         self.jumps = 1
-        self.form = True
         self.wall_slide = False
         self.was_falling = False
         self.move_speed = 0.1
-        self.slowdown = 1.0
-        self.slowdown_0 = 1.0
         self.on_edge = False
         self.land_timer = 0
+
+        self.dash_duration = 20
+        self.dash_speed = 3.0
+        self.dashing = False
 
     def update(self, tilemap, movement=(0, 0)):
         super().update(tilemap, movement=movement)
 
         self.air_time += 1
-
-        if self.action == 'levitation_end' and self.slowdown_0 == 1.0:
-            self.action = 'idle'
-
-        if self.slowdown < 1 or self.slowdown_0 < 1:
-            if round(self.slowdown_0, 2) == self.slowdown:
-                self.set_action('levitation')
-            elif round(self.slowdown_0, 2) > self.slowdown:
-                self.set_action('levitation_start')
-                self.slowdown_0 -= 0.05
-            elif round(self.slowdown_0, 2) < self.slowdown:
-                self.set_action('levitation_end')
-                self.slowdown_0 += 0.05
-
+        
+        if self.dashing:
+            self.dash_timer -= 1
+            self.velocity[1] = 0 
+            if self.dash_timer <= 0:
+                self.dashing = False
+                self.velocity[0] = 0 
+        
         else:
             if self.action == 'land':
                 self.land_timer -= 1
@@ -130,7 +124,7 @@ class Player(PhysicsEntity):
             self.wall_slide = False
             if (self.collisions['right'] or self.collisions['left']) and self.air_time > 4:
                 self.wall_slide = True
-                self.velocity[1] = min(self.velocity[1], 0.5) * (self.slowdown/self.slowdown_0)
+                self.velocity[1] = min(self.velocity[1], 0.5)
                 self.flip = self.collisions['left']
                 self.set_action('wall_slide')
 
@@ -154,35 +148,37 @@ class Player(PhysicsEntity):
                 else:
                     self.set_action('edge_idle' if self.on_edge else 'idle')
 
-        if movement[0] > 0:
-            self.velocity[0] = min(self.velocity[0] + self.move_speed * (self.slowdown/self.slowdown_0), self.move_speed)
-        elif movement[0] < 0:
-            self.velocity[0] = max(self.velocity[0] - self.move_speed * (self.slowdown/self.slowdown_0), -self.move_speed)
+        if movement[0] > 0 and not self.dashing:
+            self.velocity[0] = min(self.velocity[0] + self.move_speed, self.move_speed)
+        elif movement[0] < 0 and not self.dashing:
+            self.velocity[0] = max(self.velocity[0] - self.move_speed, -self.move_speed)
         else:
             if self.velocity[0] > 0:
-                self.velocity[0] = max(self.velocity[0] - 0.1 * (self.slowdown/self.slowdown_0), 0)
+                self.velocity[0] = max(self.velocity[0] - 0.1, 0)
             else:
-                self.velocity[0] = min(self.velocity[0] + 0.1 * (self.slowdown/self.slowdown_0), 0)
-                
-    def jump(self):
+                self.velocity[0] = min(self.velocity[0] + 0.1, 0)
+
+    def jump(self, jump_power=0):
         if self.wall_slide:
             if self.flip and self.last_movement[0] < 0 or not self.flip and self.last_movement[0] > 0:
-                self.velocity[0] = 3.5 * (self.slowdown/self.slowdown_0) * (1 if self.flip else -1)
-                self.velocity[1] = -2.5 
+                self.velocity[0] = 3.5 * (1 if self.flip else -1)
+                self.velocity[1] = -2.5 + jump_power
                 self.air_time = 5
                 self.jumps = max(0, self.jumps - 1)
                 return True
                 
         elif self.jumps and self.action in ['idle', 'run', 'land']:
-            if self.slowdown < 1:
-                self.velocity[1] = -1
-            else:
-                self.velocity[1] = -3
-                
+            self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
             self.air_time = 5
             return True
-        
+    
+    def dash(self):
+        self.dashing = True
+        self.dash_timer = self.dash_duration
+        self.velocity[0] = self.dash_speed * (-1 if self.flip else 1)  # Dash in the direction facing
+        return True
+    
     def render(self, surf, offset=(0, 0)):
         
         def process_sprite(color_map):
@@ -198,7 +194,7 @@ class Player(PhysicsEntity):
             return sprite_copy
 
         color_maps = {
-            'x2jump': {(255, 0, 0): (219, 179, 41)},
+            'x2jump': {(255, 0, 0): (255, 179, 41)},
         }
 
         for buff, color_map in color_maps.items():

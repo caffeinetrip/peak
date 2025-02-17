@@ -2,11 +2,14 @@ import os
 
 import pygame
 
+
 def load_image(path):
     img = pygame.image.load(path).convert()
     img.set_colorkey((0, 0, 0))
     return img
 
+def lerp(a, b, t):
+    return a + (b - a) * t
 class Tileset():
     def __init__(self, tileset, tile_size):
         self.tileset = tileset

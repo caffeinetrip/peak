@@ -1,10 +1,7 @@
-import moderngl
 from array import array
-import pygame
-import numpy as np
+import moderngl
 
 BASE_PATH = 'shaders/'
-
 class Shader:
     def __init__(self, vert_path, frag_paths):
         self.vert = open(BASE_PATH + vert_path + '.vert', 'r').read()
@@ -30,7 +27,7 @@ class Shader:
         ]
         
         self.current_shader = 0
-
+    
     def surf_to_texture(self, surf):
         tex = self.ctx.texture(surf.get_size(), 4)
         tex.filter = (moderngl.NEAREST, moderngl.NEAREST)
@@ -44,37 +41,29 @@ class Shader:
         else:
             raise ValueError("Invalid shader index")
 
-    def render(self, surf, ui_surf, bg_surf, t, color, noise_cof):
-        
-        color = [x / 255 for x in color]
-        
-        bg_tex = self.surf_to_texture(bg_surf)
-        bg_tex.use(0)
+    def render(self, surf, ui_surf, t, noise_cof):
         
         frame_tex = self.surf_to_texture(surf)
         frame_tex.use(1)
 
         program = self.programs[0]
         
-        program['bg_tex'].value = 0
         program['tex'].value = 1
         program['time'].value = t
         program['noise_cof'].value = noise_cof
-
+        
         self.render_objects[0].render(mode=moderngl.TRIANGLE_STRIP)
         
-        bg_tex.release()
         frame_tex.release()
         
-
         ui_tex = self.surf_to_texture(ui_surf)
         ui_tex.use(0)
-
+        
         program = self.programs[1]
         
         program['tex'].value = 0
         program['time'].value = t
-
+        
         self.render_objects[1].render(mode=moderngl.TRIANGLE_STRIP)
         
         ui_tex.release()
