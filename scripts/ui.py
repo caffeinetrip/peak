@@ -107,14 +107,15 @@ class BuffUI(UI):
         
         self.name = name
         
-        self.create_duration = 0.3
-        self.dissapear_duration = 0.25
+        self.create_duration = 0.3  # Duration of the appear animation
+        self.dissapear_duration = 0.25  # Duration of the disappear animation
 
         self.target_x = 0
         self.move_speed = 0.1
         self.move_speed_2 = 0.5
         
         self.end = False
+        self.clearing = False  # New flag to indicate the buff is being cleared
         
         self.font = pygame.font.Font("data/texts/LuckiestGuy-Regular.ttf", 9)
 
@@ -128,7 +129,7 @@ class BuffUI(UI):
             self.target_x = index * self.width
             self.x += (self.target_x - self.x) * self.move_speed
 
-        if self.active:
+        if self.active or self.clearing:  # Allow rendering during the clearing animation
             current_time = pygame.time.get_ticks()
 
             if self.kd_time == 0:
@@ -147,11 +148,12 @@ class BuffUI(UI):
             pygame.draw.rect(kd_counter_surf, (0, 0, 1), (0, 0, square_size, square_size), 2)
             kd_counter_surf.blit(key_text, ((square_size - key_width) // 2, ((square_size - key_height) // 2)+1))
 
-            if cooldown_progress >= 1:
+            if cooldown_progress >= 1 and not self.clearing:
                 self.active = False
                 self.kd_time = 0
 
             if current_time <= (self.add_time + self.create_duration * 1000):
+                # Appear animation
                 elapsed_time = current_time - self.add_time
                 cooldown_progress = elapsed_time / (self.create_duration * 1000)
 
@@ -168,10 +170,13 @@ class BuffUI(UI):
                 surf.blit(scaled_img, (self.x + (25 - 25 * cooldown_progress), self.y + (25 - 25 * cooldown_progress)))
                 surf.blit(kd_counter_surf, ((self.x - square_size + 15), (self.y - square_size + 15)))
 
-            elif current_time >= (self.add_time + (self.duration * 1000 - self.dissapear_duration * 1000)):
-                self.end = True
-                
-                elapsed_time = current_time - (self.add_time + (self.duration * 1000 - self.dissapear_duration * 1000))
+            elif self.clearing or current_time >= (self.add_time + (self.duration * 1000 - self.dissapear_duration * 1000)):
+                # Disappear animation
+                if not self.clearing:
+                    self.clearing = True
+                    self.clear_start_time = current_time  # Start the clearing animation
+
+                elapsed_time = current_time - self.clear_start_time
                 cooldown_progress = 1 - (elapsed_time / (self.dissapear_duration * 1000))
 
                 if cooldown_progress > 0:
@@ -182,7 +187,11 @@ class BuffUI(UI):
                     
                     surf.blit(scaled_img, (self.x + (25 - 25 * cooldown_progress), self.y + (25 - 25 * cooldown_progress)))
                 
+                else:
+                    self.end = True  # Mark the buff for removal after the animation completes
+                
             else:
+                # Normal state
                 scaled_img = pygame.transform.scale(self.img, (self.width, self.height))
                 surf.blit(scaled_img, (self.x, self.y))
                 
@@ -191,3 +200,8 @@ class BuffUI(UI):
         else:
             return self.name
 
+    def clear_buff(self):
+        """Trigger the buff's end animation before removing it."""
+        if not self.clearing:  # Only trigger the animation if it hasn't started already
+            self.clearing = True
+            self.clear_start_time = pygame.time.get_ticks()

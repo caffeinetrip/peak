@@ -49,13 +49,7 @@ void main() {
     vec4 color = vec4(bgColor);
 
     if (texture(tex, uv).r != 0 && texture(tex, uv).g != 0 && texture(tex, uv).b != 0) {
-        
-        if (texture(tex, uv).a == 0.784) {
-            color = vec4(1.0,0.0,0.0,1.0);
-            //color = mix(bgColor, texture(tex, uv), texture(tex, uv).a);
-        } else {
-            color = texture(tex, uv);
-        }
+        color = texture(tex, uv);
     }
 
     float scanline = sin(uv.y * 1000.0 + time * 10.0) * 0.05;

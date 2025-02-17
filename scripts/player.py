@@ -159,14 +159,18 @@ class Player(PhysicsEntity):
                 self.velocity[0] = min(self.velocity[0] + 0.1, 0)
 
     def jump(self, jump_power=0):
+        
+        if 'x2jump' in self.buffs:
+            self.buffs['x2jump'].ui.clear_buff()
+        
         if self.wall_slide:
             if self.flip and self.last_movement[0] < 0 or not self.flip and self.last_movement[0] > 0:
                 self.velocity[0] = 3.5 * (1 if self.flip else -1)
                 self.velocity[1] = -2.5 + jump_power
                 self.air_time = 5
                 self.jumps = max(0, self.jumps - 1)
-                return True
-                
+                return True    
+            
         elif self.jumps and self.action in ['idle', 'run', 'land']:
             self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
@@ -176,7 +180,7 @@ class Player(PhysicsEntity):
     def dash(self):
         self.dashing = True
         self.dash_timer = self.dash_duration
-        self.velocity[0] = self.dash_speed * (-1 if self.flip else 1)  # Dash in the direction facing
+        self.velocity[0] = self.dash_speed * (-1 if self.flip else 1) 
         return True
     
     def render(self, surf, offset=(0, 0)):

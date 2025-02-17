@@ -72,4 +72,3 @@ class Tilemap:
                     tile = self.tilemap[decor_loc]
             
                     decorations_surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))  
-               

@@ -1,7 +1,5 @@
-import sys, pygame, random
-
+import sys, pygame, random, math
 from OpenGL import *
-
 from scripts.utils import Animation, Tileset, load_image
 from scripts.player import Player
 from scripts.tilemap import Tilemap
@@ -9,6 +7,10 @@ from scripts.ui import SkillsUI
 from scripts.buff import *
 from scripts.shaders import Shader
 from scripts.particles import Particle, load_particle_images
+
+screenshot_effect = False
+effect_duration = 100 
+effect_start_time = 0
 
 class Game():
     def __init__(self):
@@ -68,7 +70,14 @@ class Game():
         
         self.t = 0
         
+        self.screenshot_effect = False
+        self.effect_duration = 250
+        self.effect_start_time = 0
+        
         self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
+
+        self.transition = 30 
+        self.transition_speed = 1 
         
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
@@ -81,7 +90,6 @@ class Game():
         self.screen_color = [0,0,0]
 
     def run(self):
-        
         while True:
             self.t += self.clock.get_time() / 1000
             
@@ -102,9 +110,9 @@ class Game():
                 offset=render_scroll,
             )
             
-            tilemap_surf = self.main_surf
-            
-            # particles
+            tilemap_surf = self.main_surf.copy().convert_alpha()
+            tilemap_surf.set_colorkey((0,0,0))
+
             if self.player.action == 'run':
                 for i in range(random.randint(1,3)):
                     if random.randint(1,20) == 1:
@@ -207,9 +215,10 @@ class Game():
             for particle in self.particles:
                 particle.draw(self.main_surf, self.scroll)
                 
+            self.main_surf.blit(tilemap_surf)
+                
             self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
             self.player.render(self.main_surf, offset=render_scroll)
-
 
             display_mask = pygame.mask.from_surface(self.display)
             display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
@@ -249,6 +258,8 @@ class Game():
                     if event.key == pygame.K_f and self.ui['screenshot'].active:
                         self.button_conditions['screenshot'] = True
                         self.ui['screenshot'].active = False
+                        self.screenshot_effect = True
+                        self.effect_start_time = pygame.time.get_ticks()
                         
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_q:
@@ -278,13 +289,42 @@ class Game():
                 obj.render(self.ui_surf, state)
             
             for name, obj in self.player.buffs.items():
-                render = obj.ui.render(self.ui_surf, list(self.player.buffs).index(name))
-                if render is not None:
-                    self.player.buffs.pop(render)
+                obj.ui.render(self.ui_surf, list(self.player.buffs).index(name))
+                if obj.ui.end:
+                    self.player.buffs = {}
                     break
             
             screen_surface = pygame.transform.scale(self.display, self.screen.get_size())
+            
+            
+            if self.screenshot_effect:
+                current_time = pygame.time.get_ticks()
+                elapsed_time = current_time - self.effect_start_time
+                
+                if elapsed_time < self.effect_duration:
+                    
+                    progress = elapsed_time / self.effect_duration 
+                    flash_alpha = int(255 * (1 - progress) ** 2) 
 
+                    flash_surface = pygame.Surface(self.screen.get_size())
+                    flash_surface.fill((255, 255, 255))  
+                    flash_surface.set_alpha(flash_alpha)
+                    self.ui_surf.blit(flash_surface, (0, 0)) 
+                else:
+                    self.screenshot_effect = False
+            
+            if self.transition:
+                
+                transition_surf = pygame.Surface(self.ui_surf.get_size())
+                transition_surf.fill((1,0,0))
+                pygame.draw.circle(transition_surf, (255, 255, 255), (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), (30 - abs(self.transition)) * 15)
+                transition_surf.set_colorkey((255, 255, 255))
+                self.ui_surf.blit(transition_surf, (0, 0))
+                
+                self.transition -= self.transition_speed
+                if self.transition <= 0:
+                    self.transition = 0
+            
             self.main_shader.render(screen_surface, self.ui_surf, self.t,
                                     self.noise_cof)
             
