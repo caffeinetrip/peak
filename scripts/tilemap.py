@@ -11,6 +11,8 @@ class Tilemap:
         self.tile_size = tile_size
         self.tilemap = {}
         self.decor_tiles = []
+        
+        self.tiles = {}
     
     def tiles_around(self, pos):
         tiles = []
@@ -47,7 +49,6 @@ class Tilemap:
                 rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size))
         return rects
 
-
     def render(self, surf, decorations_surf, tileset, offset=(0, 0)):
             
         for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
@@ -71,4 +72,4 @@ class Tilemap:
                 if decor_loc in self.tilemap:
                     tile = self.tilemap[decor_loc]
             
-                    decorations_surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))  
+                    decorations_surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))

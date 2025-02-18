@@ -47,6 +47,7 @@ class Game():
             'player/fall': Animation('data/assets/Animations/Player/fall/anim1.png'),
             'player/land': Animation('data/assets/Animations/Player/land/anim1.png', img_dur=20, loop=False),
             'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=20, loop=False),
+            'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=5, loop=False)
         }
         
         self.player = Player(self, (50, 50), (8, 15))
@@ -77,13 +78,19 @@ class Game():
         self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
 
         self.transition = 30 
+        self.death_transition = 0
         self.transition_speed = 1 
+        
+        self.death_timer = 0
+        self.death_count = 0
         
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
-        
-        self.player.pos = [45, 100]
-        self.player.air_time = 0
+
+        self.player.death = False
+        self.player = Player(self, self.player.spawn_point, (8, 15)) 
+        self.transition = 30 
+        self.death_timer = 0 
         
         self.scroll = [0, 0]
         
@@ -112,7 +119,7 @@ class Game():
             
             tilemap_surf = self.main_surf.copy().convert_alpha()
             tilemap_surf.set_colorkey((0,0,0))
-
+            
             if self.player.action == 'run':
                 for i in range(random.randint(1,3)):
                     if random.randint(1,20) == 1:
@@ -146,7 +153,13 @@ class Game():
                         if random.randint(1,10) == 5:
                             particle_color = (51,51,51)
                         else:
-                            particle_color = self.main_surf.get_at((self.player.pos[0] + self.player.size[0] - self.scroll[0], self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1))
+                            x = self.player.pos[0] + self.player.size[0] - self.scroll[0]
+                            y = self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1
+                            width, height = self.main_surf.get_size()
+                            if 0 <= x < width and 0 <= y < height:
+                                particle_color = self.main_surf.get_at((x, y))
+                            else:
+                                particle_color = (0, 0, 0, 0) 
                         
                         if random.randint(1,2) == 1:
                             x = -1.2
@@ -216,9 +229,9 @@ class Game():
                 particle.draw(self.main_surf, self.scroll)
                 
             self.main_surf.blit(tilemap_surf)
-                
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+
             self.player.render(self.main_surf, offset=render_scroll)
+            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
 
             display_mask = pygame.mask.from_surface(self.display)
             display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
@@ -304,6 +317,7 @@ class Game():
                 if elapsed_time < self.effect_duration:
                     
                     progress = elapsed_time / self.effect_duration 
+                
                     flash_alpha = int(255 * (1 - progress) ** 2) 
 
                     flash_surface = pygame.Surface(self.screen.get_size())
@@ -313,17 +327,48 @@ class Game():
                 else:
                     self.screenshot_effect = False
             
+        
             if self.transition:
-                
                 transition_surf = pygame.Surface(self.ui_surf.get_size())
                 transition_surf.fill((1,0,0))
-                pygame.draw.circle(transition_surf, (255, 255, 255), (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), (30 - abs(self.transition)) * 15)
-                transition_surf.set_colorkey((255, 255, 255))
-                self.ui_surf.blit(transition_surf, (0, 0))
                 
-                self.transition -= self.transition_speed
-                if self.transition <= 0:
-                    self.transition = 0
+                if self.transition > 0:
+                    if self.player.death:
+                        pygame.draw.circle(
+                            transition_surf, 
+                            (255, 255, 255), 
+                            (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), 
+                            max(0, 435 - ((-30+self.transition)*-1) * 15)  
+                        )
+
+                        transition_surf.set_colorkey((255, 255, 255))
+                        self.ui_surf.blit(transition_surf, (0, 0))
+                        
+                        self.transition -= self.transition_speed * 2
+                        if self.transition <= 0:
+                            self.transition = 0
+                            self.death_timer = pygame.time.get_ticks()
+
+                    else:
+                        pygame.draw.circle(transition_surf, (255, 255, 255), (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), (30 - abs(self.transition)) * 15)
+                        transition_surf.set_colorkey((255, 255, 255))
+                        self.ui_surf.blit(transition_surf, (0, 0))
+                        
+                        self.transition -= self.transition_speed
+                        if self.transition <= 0:
+                            self.transition = 0
+                            
+                        
+            elif self.player.death:
+                if self.death_timer > 0:
+                    current_time = pygame.time.get_ticks()
+                    self.ui_surf.fill((1, 0, 0)) 
+                    if current_time - self.death_timer >= 250:
+                        self.player.death = False
+                        self.player = Player(self, self.player.spawn_point, (8, 15)) 
+                        self.transition = 30 
+                        self.death_timer = 0 
+                        self.death_count += 1
             
             self.main_shader.render(screen_surface, self.ui_surf, self.t,
                                     self.noise_cof)
