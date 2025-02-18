@@ -96,6 +96,9 @@ class Player(PhysicsEntity):
 
         self.death_animation_played = False
 
+        self.last_tile = None
+        self.tile = None
+
     def update(self, tilemap, movement=(0, 0)):
         
         if self.death:
@@ -113,6 +116,7 @@ class Player(PhysicsEntity):
 
         self.air_time += 1
 
+
         for direction in ['down', 'up', 'left', 'right']:
             if self.collisions[direction]:
                 check_pos = self.pos[:]
@@ -125,15 +129,30 @@ class Player(PhysicsEntity):
                 elif direction == 'right':
                     check_pos[0] += self.size[0]
 
-                tile = tilemap.solid_check(check_pos)
-                if tile:
-                    if tile['tile_id'] == '32':
+                self.tile = tilemap.solid_check(check_pos)
+                
+                if self.tile:
+                    
+                    if self.tile['tile_id'] == '32':
                         self.death = True
                         self.game.transition = 30
                         self.game.death_timer = 0 
                         return
-                    elif tile['tile_id'] == '38':
-                        pass
+        
+        if self.last_tile:
+            if (self.last_tile['tile_id'] == '38' and self.last_tile != self.tile) or (self.last_tile['tile_id'] == '38' and self.jumps == 0):
+                tile_loc = f"{self.last_tile['pos'][0]};{self.last_tile['pos'][1]}"
+                if tile_loc in tilemap.tilemap:
+                    print(tile_loc)
+                    tilemap.tilemap[tile_loc]['tile_id'] = '40'
+                
+                tile_above_loc = f"{self.last_tile['pos'][0]}|{self.last_tile['pos'][1] - 1}"
+                tilemap.tilemap[tile_above_loc] = {
+                    'tile_id': '16',
+                    'pos': [self.last_tile['pos'][0], self.last_tile['pos'][1] - 1]
+                }
+            
+        self.last_tile = self.tile
 
         if self.dashing:
             self.dash_timer -= 1

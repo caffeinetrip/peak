@@ -47,7 +47,7 @@ class Game():
             'player/fall': Animation('data/assets/Animations/Player/fall/anim1.png'),
             'player/land': Animation('data/assets/Animations/Player/land/anim1.png', img_dur=20, loop=False),
             'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=20, loop=False),
-            'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=5, loop=False)
+            'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=3, loop=False)
         }
         
         self.player = Player(self, (50, 50), (8, 15))
@@ -97,6 +97,7 @@ class Game():
         self.screen_color = [0,0,0]
 
     def run(self):
+
         while True:
             self.t += self.clock.get_time() / 1000
             
@@ -364,10 +365,7 @@ class Game():
                     current_time = pygame.time.get_ticks()
                     self.ui_surf.fill((1, 0, 0)) 
                     if current_time - self.death_timer >= 250:
-                        self.player.death = False
-                        self.player = Player(self, self.player.spawn_point, (8, 15)) 
-                        self.transition = 30 
-                        self.death_timer = 0 
+                        self.load_level(self.level)
                         self.death_count += 1
             
             self.main_shader.render(screen_surface, self.ui_surf, self.t,
