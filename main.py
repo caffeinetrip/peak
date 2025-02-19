@@ -69,7 +69,7 @@ class Game():
         self.t = 0
         
         self.screenshot_effect = False
-        self.effect_duration = 250
+        self.effect_duration = 2000
         self.effect_start_time = 0
         
         self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
@@ -81,14 +81,15 @@ class Game():
         self.death_timer = 0
         self.death_count = 0
         
+        self.anomaly_on_screen = False
+        
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
-
 
         self.ui = {
             'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
             'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 4, 'E'),
-            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 6, 'F'),
+            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 8, 'F'),
         }
 
         self.player.death = False
@@ -102,6 +103,12 @@ class Game():
         self.screen_color = [0,0,0]
 
     def run(self):
+        text_alpha = 0 
+        text_timer = 0 
+        text_duration = 2000 
+        anomaly_finder_text = False
+        
+        flash_alpha = 250
 
         while True:
             self.t += self.clock.get_time() / 1000
@@ -283,7 +290,7 @@ class Game():
                         
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_q:
-                       self.button_conditions['glitch_dash'] = False
+                        self.button_conditions['glitch_dash'] = False
                     if event.key == pygame.K_e:
                         self.button_conditions['glitch_jump'] = False
                     if event.key == pygame.K_f:
@@ -316,6 +323,34 @@ class Game():
             
             screen_surface = pygame.transform.scale(self.display, self.screen.get_size())
             
+            if anomaly_finder_text:
+                    if text_timer == 0:
+                        text_timer = pygame.time.get_ticks()
+                    
+                    elapsed_time = pygame.time.get_ticks() - text_timer
+                    
+                    if elapsed_time < text_duration:
+                        if elapsed_time < text_duration / 2:
+                            text_alpha = min(255, text_alpha + 10)
+                        else:
+                            text_alpha = max(0, text_alpha - 10)
+                            
+                        if self.anomaly_on_screen:
+                            text_surface = self.font.render("You find anomaly!!!", True, (252, 186, 3))
+                            
+                        else:
+                            text_surface = self.font.render("Anomaly not founded", True, (255, 255, 255))
+                            
+                        text_surface.set_alpha(text_alpha)
+                        
+                        text_rect = text_surface.get_rect(center=(self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2 + 150))
+                        self.ui_surf.blit(text_surface, text_rect)
+                        
+                    else:
+                        text_timer = 0
+                        text_alpha = 0
+                        anomaly_finder_text = False
+                    
             
             if self.screenshot_effect:
                 current_time = pygame.time.get_ticks()
@@ -323,24 +358,32 @@ class Game():
                 
                 if elapsed_time < self.effect_duration:
                     
+                    self.ui_surf.fill((1,0,0))
+                    
                     progress = elapsed_time / self.effect_duration 
                 
                     flash_alpha = int(255 * (1 - progress) ** 2) 
-
+                    
                     flash_surface = pygame.Surface(self.screen.get_size())
                     flash_surface.fill((255, 255, 255))  
                     flash_surface.set_alpha(flash_alpha)
                     self.ui_surf.blit(flash_surface, (0, 0)) 
+                    
+                    if flash_alpha < 10:
+                        self.transition = 30
+                    
                 else:
                     self.screenshot_effect = False
-            
+                    flash_alpha = 250
+                    anomaly_finder_text = True
+
         
             if self.transition:
                 transition_surf = pygame.Surface(self.ui_surf.get_size())
                 transition_surf.fill((1,0,0))
                 
                 if self.transition > 0:
-                    if self.player.death:
+                    if self.player.death or flash_alpha < 10:
                         pygame.draw.circle(
                             transition_surf, 
                             (255, 255, 255), 
@@ -379,6 +422,6 @@ class Game():
             
             pygame.display.flip()
             self.clock.tick(60)
-            
+        
 if __name__ == "__main__":
     Game().run()

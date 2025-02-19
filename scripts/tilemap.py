@@ -14,6 +14,13 @@ class Tilemap:
         
         self.tiles = {}
     
+    def tile_exists(self, x, y):
+        
+        if f"{x}|{y}" in self.tilemap or f"{x};{y}" in self.tilemap:
+            return True
+        
+        return False
+    
     def tiles_around(self, pos):
         tiles = []
         tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))

@@ -1,5 +1,6 @@
 import pygame
 from scripts.utils import lerp
+
 class PhysicsEntity():
     def __init__(self, game, e_type, pos, size):
         self.game = game
@@ -8,19 +9,15 @@ class PhysicsEntity():
         self.size = size
         self.velocity = [0, 0]
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
-        
         self.action = ''
         self.anim_offset = (-3, -3)
         self.flip = False
         self.set_action('idle')
-        
         self.buffs = {}
-        
         self.last_movement = [0, 0]
-    
         self.death = False
         self.spawn_point = [180, 100]
-    
+
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
     
@@ -30,9 +27,7 @@ class PhysicsEntity():
             self.animation = self.game.animations[self.type + '/' + self.action].copy()
             
     def update(self, tilemap, movement=(0, 0)):
-        
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
-        
         frame_movement = (movement[0] + self.velocity[0], movement[1] + self.velocity[1])
         
         self.pos[0] += frame_movement[0]
@@ -76,7 +71,7 @@ class PhysicsEntity():
     def render(self, surf, offset=(0, 0)):
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), 
                   (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1] + 2))
-        
+
 class DangerBlockAnimation:
     def __init__(self, game, pos, angle):
         self.game = game
@@ -92,7 +87,6 @@ class DangerBlockAnimation:
 
     def render(self, surf, offset=(0, 0)):
         if self.timer < self.duration:
-            
             pygame.draw.rect(surf, (0, 0, 0), (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1], 16, 16))
             surf.blit(pygame.transform.rotate(self.animation.img(), self.angle), 
                       (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1]))
@@ -107,20 +101,14 @@ class Player(PhysicsEntity):
         self.move_speed = 0.1
         self.on_edge = False
         self.land_timer = 0
-        
         self.deaths_count = 0
-        
         self.dash_duration = 20
         self.dash_speed = 3.0
         self.dashing = False
-
         self.death_animation_played = False
-
         self.last_tile = None
         self.tile = None
-
         self.danger_block_animations = []
-        
         self.angle = 0
 
     def update(self, tilemap, movement=(0, 0)):
@@ -128,11 +116,8 @@ class Player(PhysicsEntity):
             if not self.death_animation_played:
                 self.set_action('death')
                 self.death_animation_played = True
-
             self.animation.update()
-            
             super().update(tilemap)
-            
             return
         
         super().update(tilemap, movement=movement)
@@ -165,46 +150,27 @@ class Player(PhysicsEntity):
                         self.game.death_timer = 0 
                         return
 
-        if not any(self.collisions.values()):
-            last_direction = self.last_collision_direction
-        else:
-            last_direction = direction
+        for direction in ['down', 'up', 'left', 'right']:
+            if self.collisions[direction]:
+                if last_direction is None:
+                    last_direction = direction
 
         if self.last_tile:
             if (self.last_tile['tile_id'] == '38' and self.last_tile != self.tile) or (self.last_tile['tile_id'] == '38' and self.velocity[1] <= -2.5):
-                tile_loc = f"{self.last_tile['pos'][0]};{self.last_tile['pos'][1]}"
+                original_pos = self.last_tile['pos'].copy()
+                tile_loc = f"{original_pos[0]};{original_pos[1]}"
                 if tile_loc in tilemap.tilemap:
                     tilemap.tilemap[tile_loc]['tile_id'] = '40'
 
-                new_tile_pos = self.last_tile['pos'][:]
 
-                if last_direction == 'down' or self.action == 'run' or self.action == 'idle':
-                    new_tile_pos[1] -= 1 
-                elif last_direction == 'up':
-                    new_tile_pos[1] += 1 
-                elif last_direction == 'left':
-                    new_tile_pos[0] += 1 
-                elif last_direction == 'right':
-                    new_tile_pos[0] -= 1 
-
-                new_tile_loc = f"{new_tile_pos[0]}|{new_tile_pos[1]}"
-                tilemap.tilemap[new_tile_loc] = {
-                    'tile_id': '16',
-                    'pos': new_tile_pos
-                }
-
-                if last_direction == 'down' or self.action == 'run' or self.action == 'idle':
-                    self.angle = 0
-                elif last_direction == 'up':
-                    self.angle = 180
-                elif last_direction == 'left':
-                    self.angle = 270
-                elif last_direction == 'right':
-                    self.angle = 90
-
-                self.game.rotate_tiles[new_tile_loc] = self.angle
-
-                self.danger_block_animations.append(DangerBlockAnimation(self.game, new_tile_pos, self.angle))
+                directions = [(0, -1, 0), (0, 1, 180), (1, 0, 270), (-1, 0, 90)]
+                for dx, dy, dir_angle in directions:
+                    check_pos = (original_pos[0] + dx, original_pos[1] + dy)
+                    check_loc = f"{check_pos[0]}|{check_pos[1]}"
+                    if not tilemap.tile_exists(check_pos[0], check_pos[1]):
+                        tilemap.tilemap[check_loc] = {'tile_id': '16', 'pos': list(check_pos)}
+                        self.game.rotate_tiles[check_loc] = dir_angle
+                        self.danger_block_animations.append(DangerBlockAnimation(self.game, check_pos, dir_angle))
 
         self.last_tile = self.tile
 
@@ -218,7 +184,6 @@ class Player(PhysicsEntity):
             if self.dash_timer <= 0:
                 self.dashing = False
                 self.velocity[0] = 0 
-
         else:
             if self.action == 'land':
                 self.land_timer -= 1
@@ -230,7 +195,6 @@ class Player(PhysicsEntity):
                     self.set_action('land')
                     self.was_falling = False
                     self.land_timer = 10
-
                 self.air_time = 0
                 self.jumps = 1
             else:
@@ -278,27 +242,21 @@ class Player(PhysicsEntity):
             anim.render(self.game.main_surf, offset=self.game.render_scroll)
             
     def jump(self, jump_power=0):
-        
         if self.wall_slide:
             if self.flip and self.last_movement[0] < 0 or not self.flip and self.last_movement[0] > 0:
                 self.velocity[0] = 3.5 * (1 if self.flip else -1)
                 self.velocity[1] = -2.5 + jump_power
                 self.air_time = 5
                 self.jumps = max(0, self.jumps - 1)
-                
                 if 'x2jump' in self.buffs:
                     self.buffs['x2jump'].ui.clear_buff()
-                    
                 return True    
-            
         elif self.jumps and self.action in ['idle', 'run', 'land']:
             self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
             self.air_time = 5
-            
             if 'x2jump' in self.buffs:
                 self.buffs['x2jump'].ui.clear_buff()
-                
             return True
     
     def dash(self):
@@ -308,14 +266,12 @@ class Player(PhysicsEntity):
         return True
     
     def render(self, surf, offset=(0, 0)):
-        
         if self.death and self.animation.done:
             return 
         
         def process_sprite(color_map):
             sprite = self.animation.img()
             sprite_copy = sprite.copy()
-
             width, height = sprite_copy.get_size()
             for x in range(width):
                 for y in range(height):
@@ -324,20 +280,14 @@ class Player(PhysicsEntity):
                         sprite_copy.set_at((x, y), (*color_map[(r, g, b)], a))
             return sprite_copy
 
-        color_maps = {
-            'x2jump': {(255, 0, 0): (255, 179, 41)},
-        }
+        color_maps = {'x2jump': {(255, 0, 0): (255, 179, 41)}}
 
         for buff, color_map in color_maps.items():
             if buff in self.buffs:
                 processed_sprite = process_sprite(color_map)
-                surf.blit(
-                    pygame.transform.flip(processed_sprite, self.flip, False),
-                    (
-                        self.pos[0] - offset[0] + self.anim_offset[0],
-                        self.pos[1] - offset[1] + self.anim_offset[1] + 2,
-                    ),
-                )
+                surf.blit(pygame.transform.flip(processed_sprite, self.flip, False),
+                          (self.pos[0] - offset[0] + self.anim_offset[0],
+                           self.pos[1] - offset[1] + self.anim_offset[1] + 2))
                 return
 
         super().render(surf, offset=offset)
