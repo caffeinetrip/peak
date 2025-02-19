@@ -36,6 +36,8 @@ class Game():
         
         self.screen_shake = 0 
         
+        self.rotate_tiles = {}
+        
         load_particle_images('data/assets/particles')
         
         self.animations = {
@@ -47,7 +49,8 @@ class Game():
             'player/fall': Animation('data/assets/Animations/Player/fall/anim1.png'),
             'player/land': Animation('data/assets/Animations/Player/land/anim1.png', img_dur=20, loop=False),
             'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=20, loop=False),
-            'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=3, loop=False)
+            'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=3, loop=False),
+            'danger_block/create': Animation('data/assets/map_tiles/test_map/anim1.png', img_dur=7, loop=False),
         }
         
         self.player = Player(self, (50, 50), (8, 15))
@@ -60,12 +63,6 @@ class Game():
         
         self.level = 'map'
         self.load_level(self.level)
-        
-        self.ui = {
-            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
-            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 4, 'E'),
-            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 6, 'F'),
-        }
         
         pygame.display.set_caption('stupid-questions')
         
@@ -87,12 +84,20 @@ class Game():
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
 
+
+        self.ui = {
+            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
+            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 4, 'E'),
+            'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 6, 'F'),
+        }
+
         self.player.death = False
         self.player = Player(self, self.player.spawn_point, (8, 15)) 
         self.transition = 30 
         self.death_timer = 0 
         
         self.scroll = [0, 0]
+        self.render_scroll = [0,0]
         
         self.screen_color = [0,0,0]
 
@@ -107,7 +112,7 @@ class Game():
             
             self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 25
             self.scroll[1] += ((self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1])-25) / 25
-            render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+            self.render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
             
             mpos = pygame.mouse.get_pos()
             
@@ -115,7 +120,8 @@ class Game():
                 self.main_surf,
                 self.decoration_surf,
                 self.tileset,
-                offset=render_scroll,
+                self.rotate_tiles,
+                offset=self.render_scroll
             )
             
             tilemap_surf = self.main_surf.copy().convert_alpha()
@@ -231,9 +237,9 @@ class Game():
                 
             self.main_surf.blit(tilemap_surf)
 
-            self.player.render(self.main_surf, offset=render_scroll)
             self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
-
+            self.player.render(self.main_surf, offset=self.render_scroll)
+            
             display_mask = pygame.mask.from_surface(self.display)
             display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
             

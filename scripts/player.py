@@ -77,6 +77,26 @@ class PhysicsEntity():
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), 
                   (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1] + 2))
         
+class DangerBlockAnimation:
+    def __init__(self, game, pos, angle):
+        self.game = game
+        self.angle = angle
+        self.pos = list(pos)
+        self.animation = self.game.animations['danger_block/create'].copy()
+        self.duration = self.animation.img_duration
+        self.timer = 0
+
+    def update(self):
+        self.timer += 0.1
+        self.animation.update()
+
+    def render(self, surf, offset=(0, 0)):
+        if self.timer < self.duration:
+            
+            pygame.draw.rect(surf, (0, 0, 0), (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1], 16, 16))
+            surf.blit(pygame.transform.rotate(self.animation.img(), self.angle), 
+                      (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1]))
+
 class Player(PhysicsEntity):
     def __init__(self, game, pos, size):
         super().__init__(game, 'player', pos, size)
@@ -99,8 +119,11 @@ class Player(PhysicsEntity):
         self.last_tile = None
         self.tile = None
 
-    def update(self, tilemap, movement=(0, 0)):
+        self.danger_block_animations = []
         
+        self.angle = 0
+
+    def update(self, tilemap, movement=(0, 0)):
         if self.death:
             if not self.death_animation_played:
                 self.set_action('death')
@@ -115,7 +138,10 @@ class Player(PhysicsEntity):
         super().update(tilemap, movement=movement)
 
         self.air_time += 1
+        last_direction = None 
 
+        if not hasattr(self, 'last_collision_direction'):
+            self.last_collision_direction = None
 
         for direction in ['down', 'up', 'left', 'right']:
             if self.collisions[direction]:
@@ -130,33 +156,65 @@ class Player(PhysicsEntity):
                     check_pos[0] += self.size[0]
 
                 self.tile = tilemap.solid_check(check_pos)
-                
+                self.last_collision_direction = direction
+
                 if self.tile:
-                    
-                    if self.tile['tile_id'] == '32':
+                    if self.tile['tile_id'] in ['32', '40']:
                         self.death = True
                         self.game.transition = 30
                         self.game.death_timer = 0 
                         return
-        
+
+        if not any(self.collisions.values()):
+            last_direction = self.last_collision_direction
+        else:
+            last_direction = direction
+
         if self.last_tile:
-            if (self.last_tile['tile_id'] == '38' and self.last_tile != self.tile) or (self.last_tile['tile_id'] == '38' and self.jumps == 0):
+            if (self.last_tile['tile_id'] == '38' and self.last_tile != self.tile) or (self.last_tile['tile_id'] == '38' and self.velocity[1] <= -2.5):
                 tile_loc = f"{self.last_tile['pos'][0]};{self.last_tile['pos'][1]}"
                 if tile_loc in tilemap.tilemap:
-                    print(tile_loc)
                     tilemap.tilemap[tile_loc]['tile_id'] = '40'
-                
-                tile_above_loc = f"{self.last_tile['pos'][0]}|{self.last_tile['pos'][1] - 1}"
-                tilemap.tilemap[tile_above_loc] = {
+
+                new_tile_pos = self.last_tile['pos'][:]
+
+                if last_direction == 'down' or self.action == 'run' or self.action == 'idle':
+                    new_tile_pos[1] -= 1 
+                elif last_direction == 'up':
+                    new_tile_pos[1] += 1 
+                elif last_direction == 'left':
+                    new_tile_pos[0] += 1 
+                elif last_direction == 'right':
+                    new_tile_pos[0] -= 1 
+
+                new_tile_loc = f"{new_tile_pos[0]}|{new_tile_pos[1]}"
+                tilemap.tilemap[new_tile_loc] = {
                     'tile_id': '16',
-                    'pos': [self.last_tile['pos'][0], self.last_tile['pos'][1] - 1]
+                    'pos': new_tile_pos
                 }
-            
+
+                if last_direction == 'down' or self.action == 'run' or self.action == 'idle':
+                    self.angle = 0
+                elif last_direction == 'up':
+                    self.angle = 180
+                elif last_direction == 'left':
+                    self.angle = 270
+                elif last_direction == 'right':
+                    self.angle = 90
+
+                self.game.rotate_tiles[new_tile_loc] = self.angle
+
+                self.danger_block_animations.append(DangerBlockAnimation(self.game, new_tile_pos, self.angle))
+
         self.last_tile = self.tile
+
+        for anim in self.danger_block_animations:
+            anim.update()
+        self.danger_block_animations = [anim for anim in self.danger_block_animations if anim.timer < anim.duration]
 
         if self.dashing:
             self.dash_timer -= 1
-            self.velocity[1] = 0 
+            self.velocity[1] = 0.3
             if self.dash_timer <= 0:
                 self.dashing = False
                 self.velocity[0] = 0 
@@ -215,11 +273,11 @@ class Player(PhysicsEntity):
                 self.velocity[0] = max(self.velocity[0] - 0.1, 0)
             else:
                 self.velocity[0] = min(self.velocity[0] + 0.1, 0)
-
+                
+        for anim in self.danger_block_animations:
+            anim.render(self.game.main_surf, offset=self.game.render_scroll)
+            
     def jump(self, jump_power=0):
-        
-        if 'x2jump' in self.buffs:
-            self.buffs['x2jump'].ui.clear_buff()
         
         if self.wall_slide:
             if self.flip and self.last_movement[0] < 0 or not self.flip and self.last_movement[0] > 0:
@@ -227,12 +285,20 @@ class Player(PhysicsEntity):
                 self.velocity[1] = -2.5 + jump_power
                 self.air_time = 5
                 self.jumps = max(0, self.jumps - 1)
+                
+                if 'x2jump' in self.buffs:
+                    self.buffs['x2jump'].ui.clear_buff()
+                    
                 return True    
             
         elif self.jumps and self.action in ['idle', 'run', 'land']:
             self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
             self.air_time = 5
+            
+            if 'x2jump' in self.buffs:
+                self.buffs['x2jump'].ui.clear_buff()
+                
             return True
     
     def dash(self):
