@@ -1,4 +1,4 @@
-import sys, pygame, random, math
+import sys, pygame, random, json, time
 from OpenGL import *
 from scripts.utils import Animation, Tileset, load_image
 from scripts.player import Player
@@ -34,9 +34,13 @@ class Game():
 
         self.noise_cof = 1.0
         
+        self.last_save_time = time.time()
+        self.save_interval = 300
+        
         self.screen_shake = 0 
         
         self.rotate_tiles = {}
+        self.checkpoint = [180, 100]
         
         load_particle_images('data/assets/particles')
         
@@ -82,7 +86,9 @@ class Game():
         self.death_count = 0
         
         self.anomaly_on_screen = False
-        
+
+        self.load_data()
+
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
 
@@ -93,7 +99,7 @@ class Game():
         }
 
         self.player.death = False
-        self.player = Player(self, self.player.spawn_point, (8, 15)) 
+        self.player = Player(self, self.checkpoint, (8, 15)) 
         self.transition = 30 
         self.death_timer = 0 
         
@@ -101,7 +107,49 @@ class Game():
         self.render_scroll = [0,0]
         
         self.screen_color = [0,0,0]
-
+    
+    def save_data(self):
+        data = {
+            'player_pos': list(self.player.pos),
+            'checkpoint': list(self.checkpoint),
+            'death_count': self.death_count,
+            'tilemap': self.tilemap.tilemap,
+            'level': self.level
+            
+        }
+        
+        with open("save.json", "w") as outfile:
+            json.dump(data, outfile, indent=4)
+        
+    def load_data(self):
+        save_file = "save.json"
+        
+        if os.path.exists(save_file):
+            try:
+                with open(save_file, "r") as infile:
+                    data = json.load(infile)
+                    
+                    self.checkpoint = data.get('checkpoint', [180, 100])
+                    self.death_count = data.get('death_count', 0)
+                    self.level = data.get('level', 'map')
+                    
+                    self.load_level(self.level)
+                    
+                    self.tilemap.tilemap = data.get('tilemap')
+                    self.player.pos = data.get('player_pos')
+                    
+            except json.JSONDecodeError:
+                print("Warning: save.json is corrupted or empty. Initializing with default values.")
+                self.load_level('map')
+                self.player.pos = (50, 50)
+                self.checkpoint = [180, 100]
+                self.death_count = 0
+        else:
+            self.load_level('map')
+            self.player.pos = (50, 50)
+            self.checkpoint = [180, 100]
+            self.death_count = 0
+    
     def run(self):
         text_alpha = 0 
         text_timer = 0 
@@ -112,6 +160,11 @@ class Game():
 
         while True:
             self.t += self.clock.get_time() / 1000
+            
+            current_time = time.time()
+            if current_time - self.last_save_time >= self.save_interval:
+                self.save_data()
+                self.last_save_time = current_time
             
             self.ui_surf.fill((0,0,0))
             self.main_surf.fill((0, 0, 0))
@@ -257,11 +310,14 @@ class Game():
                 buff.activate_effect()
             
             for event in pygame.event.get():
+                    
                 if event.type == pygame.QUIT:
+                    self.save_data()
                     pygame.quit()
                     sys.exit()
-                    
+                        
                 if event.type == pygame.KEYDOWN:
+
                     if event.key == pygame.K_a:
                         self.movement[0] = True
                     if event.key == pygame.K_d:

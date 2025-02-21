@@ -16,7 +16,6 @@ class PhysicsEntity():
         self.buffs = {}
         self.last_movement = [0, 0]
         self.death = False
-        self.spawn_point = [180, 100]
 
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -161,7 +160,6 @@ class Player(PhysicsEntity):
                 tile_loc = f"{original_pos[0]};{original_pos[1]}"
                 if tile_loc in tilemap.tilemap:
                     tilemap.tilemap[tile_loc]['tile_id'] = '40'
-
 
                 directions = [(0, -1, 0), (0, 1, 180), (1, 0, 270), (-1, 0, 90)]
                 for dx, dy, dir_angle in directions:
