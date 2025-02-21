@@ -23,8 +23,8 @@ float noise(vec2 p) {
 }
 
 vec4 gradientBackground(vec2 uv) {
-    vec4 color1 = vec4(0.1, 0.0, 0.0, 1.0); 
-    vec4 color2 = vec4(0.1, 0.05, 0.0, 1.0);
+    vec4 color1 = vec4(0.15, 0.001, 0.001, 1.0); 
+    vec4 color2 = vec4(0.15, 0.001, 0.001, 1.0);
     return mix(color1, color2, 0.0);
 }
 
@@ -44,9 +44,10 @@ void main() {
     float noiseValue = noise(uv * 10.0 + time * 0.1);
     bgColor += noiseValue * 0.05;
 
-    bgColor += vec4(sin(time * 0.15) * 0.05, cos(time * 0.13) * 0.05, sin(time * 0.07) * 0.05, 1.0);
+    bgColor += vec4(sin(time * 0.15) * 0.05, cos(time * 0.013) * 0.05, sin(time * 0.07) * 0.05, 1.0);
 
     vec4 color = vec4(bgColor);
+    color.rgb = mix(vec3(dot(color.rgb, vec3(0, 0, 0))), color.rgb, 0.75);
 
     if (texture(tex, uv).r != 0 && texture(tex, uv).g != 0 && texture(tex, uv).b != 0) {
         color = texture(tex, uv);
@@ -63,7 +64,7 @@ void main() {
     color.rgb += (noise(uv * 50.0 + time) - 0.5) * 0.1 * noise_cof; 
 
     color.rgb = mix(vec3(dot(color.rgb, vec3(0.299, 0.587, 0.114))), color.rgb, 0.8);
-    color.rgb = mix(vec3(dot(color.rgb, vec3(0, 0, 0))), color.rgb, 0.9);
+    color.rgb = mix(vec3(dot(color.rgb, vec3(0, 0, 0))), color.rgb, 0.75);
 
     f_color = color;
 }

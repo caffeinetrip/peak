@@ -129,14 +129,14 @@ class Player(PhysicsEntity):
             
 
         for tile in tilemap.tiles_around(self.pos, ':'):
-            if tile['tile_id'] == '41':
+            if tile['tile_id'] == '110':
                 self.game.checkpoint = [tile['pos'][0] * tilemap.tile_size, tile['pos'][1] * tilemap.tile_size]
                 
-                tilemap.tilemap[str(tile['pos'][0]) + ':' + str(tile['pos'][1])]['tile_id'] = '42'
+                tilemap.tilemap[str(tile['pos'][0]) + ':' + str(tile['pos'][1])]['tile_id'] = '111'
                 
                 for key, tile_ in tilemap.tilemap.items():
-                    if tile != tile_ and tile_['tile_id'] == '42':
-                        tile_['tile_id'] = '41'
+                    if tile != tile_ and tile_['tile_id'] == '111':
+                        tile_['tile_id'] = '110'
 
         for direction in ['down', 'up', 'left', 'right']:
             if self.collisions[direction]:
@@ -164,9 +164,11 @@ class Player(PhysicsEntity):
 
                 self.tile = [tilemap.solid_check(check_pos[0]), tilemap.solid_check(check_pos[1])]
                 self.last_collision_direction = direction
+                
+                #print(tilemap.solid_check(check_pos[0]))
 
                 if self.tile[0] and self.tile[1]:
-                    if self.tile[0]['tile_id'] in ['32', '40'] or self.tile[1]['tile_id'] in ['32', '40']:
+                    if self.tile[0]['tile_id'] in ['10', '22', '77', '78'] or self.tile[1]['tile_id'] in ['10', '22', '77', '78']:
                         self.death = True
                         self.game.transition = 30
                         self.game.death_timer = 0 
@@ -179,18 +181,18 @@ class Player(PhysicsEntity):
 
         if self.last_tile and self.last_tile[0]:
            
-            if (self.last_tile[0]['tile_id'] == '38' and self.last_tile[0] != self.tile[0]) or (self.last_tile[0]['tile_id'] == '38' and self.velocity[1] <= -2.5):
+            if (self.last_tile[0]['tile_id'] == '44' and self.last_tile[0] != self.tile[0]) or (self.last_tile[0]['tile_id'] == '44' and self.velocity[1] <= -2.5):
                 original_pos = self.last_tile[0]['pos'].copy()
                 tile_loc = f"{original_pos[0]};{original_pos[1]}"
                 if tile_loc in tilemap.tilemap:
-                    tilemap.tilemap[tile_loc]['tile_id'] = '40'
+                    tilemap.tilemap[tile_loc]['tile_id'] = '22'
 
                 directions = [(0, -1, 0), (0, 1, 180), (1, 0, 270), (-1, 0, 90)]
                 for dx, dy, dir_angle in directions:
                     check_pos = (original_pos[0] + dx, original_pos[1] + dy)
                     check_loc = f"{check_pos[0]}|{check_pos[1]}"
                     if not tilemap.tile_exists(check_pos[0], check_pos[1]):
-                        tilemap.tilemap[check_loc] = {'tile_id': '16', 'pos': list(check_pos)}
+                        tilemap.tilemap[check_loc] = {'tile_id': '17', 'pos': list(check_pos)}
                         self.game.rotate_tiles[check_loc] = dir_angle
                         self.danger_block_animations.append(DangerBlockAnimation(self.game, check_pos, dir_angle))
 
@@ -202,7 +204,7 @@ class Player(PhysicsEntity):
 
         if self.dashing:
             self.dash_timer -= 1
-            self.velocity[1] = 0.3
+            self.velocity[1] = 0.321321
             if self.dash_timer <= 0:
                 self.dashing = False
                 self.velocity[0] = 0 
@@ -225,9 +227,9 @@ class Player(PhysicsEntity):
                     self.set_action('fall')
 
             self.wall_slide = False
-            if (self.collisions['right'] or self.collisions['left']) and self.air_time > 4:
+            if (self.collisions['right'] or self.collisions['left']) and self.air_time > 4 and self.velocity[0]:
                 self.wall_slide = True
-                self.velocity[1] = min(self.velocity[1], 0.5)
+                self.velocity[1] = min(self.velocity[1]*0.95, 0.5)
                 self.flip = self.collisions['left']
                 self.set_action('wall_slide')
 
@@ -273,7 +275,7 @@ class Player(PhysicsEntity):
                 if 'x2jump' in self.buffs:
                     self.buffs['x2jump'].ui.clear_buff()
                 return True    
-        elif self.jumps and self.action in ['idle', 'run', 'land']:
+        elif self.jumps and self.action in ['edge_idle', 'idle', 'run', 'land']:
             self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
             self.air_time = 5
@@ -302,7 +304,7 @@ class Player(PhysicsEntity):
                         sprite_copy.set_at((x, y), (*color_map[(r, g, b)], a))
             return sprite_copy
 
-        color_maps = {'x2jump': {(255, 0, 0): (255, 179, 41)}}
+        color_maps = {'x2jump': {(255, 0, 0): (152, 1, 1)}}
 
         for buff, color_map in color_maps.items():
             if buff in self.buffs:

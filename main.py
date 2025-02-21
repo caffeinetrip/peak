@@ -92,6 +92,7 @@ class Game():
 
     def load_level(self, level_name):
         self.tilemap.load('data/levels/' + level_name + '.json')
+        self.rotate_tiles = {}
 
         self.ui = {
             'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
@@ -132,29 +133,19 @@ class Game():
                 with open(save_file, "r") as infile:
                     data = json.load(infile)
                     
-                    self.checkpoint = data.get('checkpoint', [180, 100])
-                    self.death_count = data.get('death_count', 0)
-                    self.level = data.get('level', 'map')
+                    self.checkpoint = data.get('checkpoint', self.checkpoint)
+                    self.death_count = data.get('death_count', self.death_count)
+                    self.level = data.get('level', self.level)
                     
                     self.load_level(self.level)
                     
-                    self.tilemap.tilemap = data.get('tilemap')
-                    self.rotate_tiles = data.get('rotate_tiles', {})
-                    self.scroll = data.get('scroll', [0,0])
-                    self.player.pos = data.get('player_pos')
+                    self.tilemap.tilemap = data.get('tilemap', self.tilemap.tilemap)
+                    self.rotate_tiles = data.get('rotate_tiles', self.rotate_tiles)
+                    self.scroll = data.get('scroll', self.scroll)
+                    self.player.pos = data.get('player_pos', self.player.pos)
                     
             except json.JSONDecodeError:
                 print("Warning: save.json is corrupted or empty. Initializing with default values.")
-                self.load_level('map')
-                self.player.pos = (50, 50)
-                self.checkpoint = [180, 100]
-                self.death_count = 0
-        else:
-            self.load_level('map')
-            self.player.pos = (50, 50)
-            self.checkpoint = [180, 100]
-            self.death_count = 0
-            self.rotate_tiles = {}
     
     def run(self):
         text_alpha = 0 
@@ -264,7 +255,7 @@ class Game():
                                 [0, 1],
                                 0.5, 
                                 0,
-                                (215,215,215),
+                                (150,150,150),
                                 alpha=200
                             ))
 
@@ -331,9 +322,9 @@ class Game():
                         self.tilemap.load('data/levels/' + self.level + '.json')
                     if event.key == pygame.K_d:
                         self.movement[1] = True
-                    if event.key == pygame.K_w and self.player.velocity[1] != 0.3:
+                    if event.key == pygame.K_w and self.player.velocity[1] != 0.321321:
                         if 'x2jump' in self.player.buffs:
-                            self.player.jump(-1.5)
+                            self.player.jump(-1.15)
                         else:
                             self.player.jump()
                         
@@ -352,7 +343,7 @@ class Game():
                         self.ui['screenshot'].active = False
                         self.screenshot_effect = True
                         self.effect_start_time = pygame.time.get_ticks()
-                        
+
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_q:
                         self.button_conditions['glitch_dash'] = False
@@ -486,6 +477,10 @@ class Game():
                     if current_time - self.death_timer >= 250:
                         self.load_level(self.level)
                         self.death_count += 1
+                        self.scroll[0] = (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) 
+                        self.scroll[1] = ((self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1])-25) 
+                        self.render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+            
             
             self.main_shader.render(screen_surface, self.ui_surf, self.t,
                                     self.noise_cof)
@@ -495,3 +490,4 @@ class Game():
         
 if __name__ == "__main__":
     Game().run()
+    
