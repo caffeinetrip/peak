@@ -193,102 +193,104 @@ class Game():
             tilemap_surf = self.main_surf.copy().convert_alpha()
             tilemap_surf.set_colorkey((0,0,0))
             
-            if self.player.action == 'run':
-                for i in range(random.randint(1,3)):
-                    if random.randint(1,20) == 1:
-                        
-                        if random.randint(1,10) == 5:
-                            particle_color = (51,51,51)
-                        elif random.randint(1,25) == 5:
-                            particle_color = (140,140,140)
-                        else:
-                            particle_color = self.main_surf.get_at((self.player.pos[0] + self.player.size[0] - self.scroll[0], self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1))
-                        
-                        self.particles.append(
-                            Particle(
-                                self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
-                                self.player.pos[1] + self.player.size[1]-1,
-                                'grass', 
-                                [self.player.velocity[0], -0.1],
-                                0.5, 
-                                0,
-                                particle_color,
-                                alpha=200
-                            ))
-                        
-            if self.player.action == 'land':
-                
-                if self.screen_shake < 5:
-                    self.screen_shake = 5
-                
-                for i in range(random.randint(1,2)):
-                    if i == 1:
-                        if random.randint(1,10) == 5:
-                            particle_color = (51,51,51)
-                        else:
-                            x = self.player.pos[0] + self.player.size[0] - self.scroll[0]
-                            y = self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1
-                            width, height = self.main_surf.get_size()
-                            if 0 <= x < width and 0 <= y < height:
-                                particle_color = self.main_surf.get_at((x, y))
-                            else:
-                                particle_color = (0, 0, 0, 0) 
-                        
-                        if random.randint(1,2) == 1:
-                            x = -1.2
-                        else:
-                            x = 1.2
-                        
-                        self.particles.append(
-                            Particle(
-                                self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
-                                self.player.pos[1] + self.player.size[1]-1,
-                                'grass', 
-                                [x, -0.2],
-                                0.5, 
-                                0,
-                                particle_color,
-                                alpha=200
-                            ))
             
-            if self.player.action == 'jump':
-                    
-                if random.randint(1,int(50)) == 1:
-                    self.particles.append(
-                        Particle(
-                            self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
-                            self.player.pos[1] + self.player.size[1]-1,
-                            'grass', 
-                            [0, 1],
-                            0.5, 
-                            0,
-                            (215,215,215),
-                            alpha=200
-                        ))
-
-            if self.player.action == 'wall_slide':
-                for i in range(random.randint(1,3)):
-                    if random.randint(1,10) == 1:
-                        particle_color = (140,140,140, 150)
-                        if random.randint(1,10) == 5:
-                            particle_color = (51,51,51, 150)
-                    
-                        if self.player.flip:
-                            kef = -1.5
-                        else:
-                            kef = 2.7
+            if 0 <= self.player.pos[0] - self.scroll[0] < self.main_surf.get_width() and 0 <= self.player.pos[1] - self.scroll[1] + 1 < self.main_surf.get_height():
+                if self.player.action == 'run':
+                    for i in range(random.randint(1,3)):
+                        if random.randint(1,20) == 1:
                             
+                            if random.randint(1,10) == 5:
+                                particle_color = (51,51,51)
+                            elif random.randint(1,25) == 5:
+                                particle_color = (140,140,140)
+                            else:
+                                particle_color = self.main_surf.get_at((self.player.pos[0] + self.player.size[0] - self.scroll[0], self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1))
+                            
+                            self.particles.append(
+                                Particle(
+                                    self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
+                                    self.player.pos[1] + self.player.size[1]-1,
+                                    'grass', 
+                                    [self.player.velocity[0], -0.1],
+                                    0.5, 
+                                    0,
+                                    particle_color,
+                                    alpha=200
+                                ))
+                            
+                if self.player.action == 'land':
+                    
+                    if self.screen_shake < 5:
+                        self.screen_shake = 5
+                    
+                    for i in range(random.randint(1,2)):
+                        if i == 1:
+                            if random.randint(1,10) == 5:
+                                particle_color = (51,51,51)
+                            else:
+                                x = self.player.pos[0] + self.player.size[0] - self.scroll[0]
+                                y = self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1
+                                width, height = self.main_surf.get_size()
+                                if 0 <= x < width and 0 <= y < height:
+                                    particle_color = self.main_surf.get_at((x, y))
+                                else:
+                                    particle_color = (0, 0, 0, 0) 
+                            
+                            if random.randint(1,2) == 1:
+                                x = -1.2
+                            else:
+                                x = 1.2
+                            
+                            self.particles.append(
+                                Particle(
+                                    self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
+                                    self.player.pos[1] + self.player.size[1]-1,
+                                    'grass', 
+                                    [x, -0.2],
+                                    0.5, 
+                                    0,
+                                    particle_color,
+                                    alpha=200
+                                ))
+                
+                if self.player.action == 'jump':
+                        
+                    if random.randint(1,int(50)) == 1:
                         self.particles.append(
                             Particle(
-                                self.player.pos[0] + self.player.size[0] // 2 + kef,
-                                self.player.pos[1],
+                                self.player.pos[0] + self.player.size[0] // 2 + random.randint(-3, 3),
+                                self.player.pos[1] + self.player.size[1]-1,
                                 'grass', 
-                                [0, (self.player.velocity[0]*-1)*2],
+                                [0, 1],
                                 0.5, 
                                 0,
-                                particle_color,
+                                (215,215,215),
                                 alpha=200
                             ))
+
+                if self.player.action == 'wall_slide':
+                    for i in range(random.randint(1,3)):
+                        if random.randint(1,10) == 1:
+                            particle_color = (140,140,140, 150)
+                            if random.randint(1,10) == 5:
+                                particle_color = (51,51,51, 150)
+                        
+                            if self.player.flip:
+                                kef = -1.5
+                            else:
+                                kef = 2.7
+                                
+                            self.particles.append(
+                                Particle(
+                                    self.player.pos[0] + self.player.size[0] // 2 + kef,
+                                    self.player.pos[1],
+                                    'grass', 
+                                    [0, (self.player.velocity[0]*-1)*2],
+                                    0.5, 
+                                    0,
+                                    particle_color,
+                                    alpha=200
+                                ))
             
             if self.screen_shake > 0:
                 self.screen_shake -= 1
@@ -325,6 +327,8 @@ class Game():
 
                     if event.key == pygame.K_a:
                         self.movement[0] = True
+                    if event.key == pygame.K_0:
+                        self.tilemap.load('data/levels/' + self.level + '.json')
                     if event.key == pygame.K_d:
                         self.movement[1] = True
                     if event.key == pygame.K_w and self.player.velocity[1] != 0.3:

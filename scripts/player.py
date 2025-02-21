@@ -126,6 +126,17 @@ class Player(PhysicsEntity):
 
         if not hasattr(self, 'last_collision_direction'):
             self.last_collision_direction = None
+            
+
+        for tile in tilemap.tiles_around(self.pos, ':'):
+            if tile['tile_id'] == '41':
+                self.game.checkpoint = [tile['pos'][0] * tilemap.tile_size, tile['pos'][1] * tilemap.tile_size]
+                
+                tilemap.tilemap[str(tile['pos'][0]) + ':' + str(tile['pos'][1])]['tile_id'] = '42'
+                
+                for key, tile_ in tilemap.tilemap.items():
+                    if tile != tile_ and tile_['tile_id'] == '42':
+                        tile_['tile_id'] = '41'
 
         for direction in ['down', 'up', 'left', 'right']:
             if self.collisions[direction]:
@@ -138,10 +149,18 @@ class Player(PhysicsEntity):
                     
                 elif direction == 'up':
                     check_pos[0][1] -= 1
+                    check_pos[1][1] -= 1
+                    check_pos[1][0] += self.size[0]
+                    
                 elif direction == 'left':
                     check_pos[0][0] -= 1
+                    check_pos[1][0] -= 1
+                    check_pos[1][1] += self.size[1]
+                    
                 elif direction == 'right':
-                    check_pos[0][0] += self.size[0]
+                    check_pos[0][0] += self.size[0] + 1
+                    check_pos[1][0] += self.size[0] + 1
+                    check_pos[1][1] += self.size[1]
 
                 self.tile = [tilemap.solid_check(check_pos[0]), tilemap.solid_check(check_pos[1])]
                 self.last_collision_direction = direction
