@@ -94,9 +94,13 @@ class Game():
         self.tilemap.load('data/levels/' + level_name + '.json')
         self.rotate_tiles = {}
 
+        self.anomaly_positions = [
+            (355, 177),
+        ]
+
         self.ui = {
-            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 4 , 'Q'),
-            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 4, 'E'),
+            'glitch_dash': SkillsUI(50,50, load_image('data/assets/spells/glitch_dash.png'), 400, 475, 3 , 'Q'),
+            'glitch_jump': SkillsUI(50,50, load_image('data/assets/spells/glitch_jump.png'), 460, 475, 3, 'E'),
             'screenshot': SkillsUI(50,50, load_image('data/assets/spells/screenshot.png'), 520, 475, 8, 'F'),
         }
 
@@ -146,7 +150,14 @@ class Game():
                     
             except json.JSONDecodeError:
                 print("Warning: save.json is corrupted or empty. Initializing with default values.")
-    
+
+    def is_anomaly_near(self):
+        for pos in self.anomaly_positions:
+            if pos[0]-self.scroll[0] < self.display_width and pos[1]-self.scroll[1] < self.display_height:
+                if  pos[0]-self.scroll[0] > 0 and pos[1]-self.scroll[1] > 0:
+                    return True
+        return False
+
     def run(self):
         text_alpha = 0 
         text_timer = 0 
@@ -366,6 +377,8 @@ class Game():
             
             img = self.font.render(str(int(self.clock.get_fps())), True, (255, 255, 255))
             self.ui_surf.blit(img, (930, 10))
+            
+            self.anomaly_on_screen = self.is_anomaly_near()
         
             for name, obj in self.ui.items():
                 state = 'pressed' if (name in self.button_conditions and self.button_conditions[name]) else mpos
@@ -392,7 +405,7 @@ class Game():
                             text_alpha = max(0, text_alpha - 10)
                             
                         if self.anomaly_on_screen:
-                            text_surface = self.font.render("You find anomaly!!!", True, (252, 186, 3))
+                            text_surface = self.font.render("Anomaly is near you!!!", True, (252, 3, 3))
                             
                         else:
                             text_surface = self.font.render("Anomaly not founded", True, (255, 255, 255))

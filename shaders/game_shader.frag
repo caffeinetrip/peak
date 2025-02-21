@@ -59,7 +59,7 @@ void main() {
     color.rgb *= 0.9 + 0.1 * rand(uv + time);
 
     vec2 vig = uv - 0.5;
-    color.rgb *= 1.0 - dot(vig, vig) * 1.5;
+    color.rgb *= 1.0 - dot(vig, vig) * 1.5  * noise_cof;
 
     color.rgb += (noise(uv * 50.0 + time) - 0.5) * 0.1 * noise_cof; 
 
