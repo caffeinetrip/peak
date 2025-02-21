@@ -87,6 +87,7 @@ class Game():
         
         self.anomaly_on_screen = False
 
+        self.screen_off = False 
         self.load_data()
 
     def load_level(self, level_name):
@@ -114,15 +115,17 @@ class Game():
             'checkpoint': list(self.checkpoint),
             'death_count': self.death_count,
             'tilemap': self.tilemap.tilemap,
-            'level': self.level
+            'level': self.level,
+            'rotate_tiles': self.rotate_tiles,
+            'scroll': self.scroll
             
         }
         
-        with open("save.json", "w") as outfile:
+        with open("data/saves/save.json", "w") as outfile:
             json.dump(data, outfile, indent=4)
         
     def load_data(self):
-        save_file = "save.json"
+        save_file = "data/saves/save.json"
         
         if os.path.exists(save_file):
             try:
@@ -136,6 +139,8 @@ class Game():
                     self.load_level(self.level)
                     
                     self.tilemap.tilemap = data.get('tilemap')
+                    self.rotate_tiles = data.get('rotate_tiles', {})
+                    self.scroll = data.get('scroll', [0,0])
                     self.player.pos = data.get('player_pos')
                     
             except json.JSONDecodeError:
@@ -149,6 +154,7 @@ class Game():
             self.player.pos = (50, 50)
             self.checkpoint = [180, 100]
             self.death_count = 0
+            self.rotate_tiles = {}
     
     def run(self):
         text_alpha = 0 
@@ -312,9 +318,8 @@ class Game():
             for event in pygame.event.get():
                     
                 if event.type == pygame.QUIT:
-                    self.save_data()
-                    pygame.quit()
-                    sys.exit()
+                    self.screen_off = True
+                    self.transition = 30
                         
                 if event.type == pygame.KEYDOWN:
 
@@ -322,7 +327,7 @@ class Game():
                         self.movement[0] = True
                     if event.key == pygame.K_d:
                         self.movement[1] = True
-                    if event.key == pygame.K_w:
+                    if event.key == pygame.K_w and self.player.velocity[1] != 0.3:
                         if 'x2jump' in self.player.buffs:
                             self.player.jump(-1.5)
                         else:
@@ -432,28 +437,33 @@ class Game():
                     self.screenshot_effect = False
                     flash_alpha = 250
                     anomaly_finder_text = True
-
         
             if self.transition:
                 transition_surf = pygame.Surface(self.ui_surf.get_size())
                 transition_surf.fill((1,0,0))
                 
                 if self.transition > 0:
-                    if self.player.death or flash_alpha < 10:
+                    if self.player.death or flash_alpha < 10 or self.screen_off:
                         pygame.draw.circle(
                             transition_surf, 
                             (255, 255, 255), 
                             (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), 
-                            max(0, 435 - ((-30+self.transition)*-1) * 15)  
+                            max(0, 435 - ((-30+self.transition)*-1) * 15) // (25 if self.screen_off else 1)
                         )
 
                         transition_surf.set_colorkey((255, 255, 255))
                         self.ui_surf.blit(transition_surf, (0, 0))
                         
                         self.transition -= self.transition_speed * 2
+                        
                         if self.transition <= 0:
                             self.transition = 0
                             self.death_timer = pygame.time.get_ticks()
+                            
+                            if self.screen_off:
+                                self.save_data()
+                                pygame.quit()
+                                sys.exit()
 
                     else:
                         pygame.draw.circle(transition_surf, (255, 255, 255), (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), (30 - abs(self.transition)) * 15)

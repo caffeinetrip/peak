@@ -129,21 +129,25 @@ class Player(PhysicsEntity):
 
         for direction in ['down', 'up', 'left', 'right']:
             if self.collisions[direction]:
-                check_pos = self.pos[:]
-                if direction == 'down':
-                    check_pos[1] += self.size[1]
-                elif direction == 'up':
-                    check_pos[1] -= 1
-                elif direction == 'left':
-                    check_pos[0] -= 1
-                elif direction == 'right':
-                    check_pos[0] += self.size[0]
+                check_pos = [self.pos[:], self.pos[:]]
 
-                self.tile = tilemap.solid_check(check_pos)
+                if direction == 'down':
+                    check_pos[0][1] += self.size[1]
+                    check_pos[1][1] += self.size[1]
+                    check_pos[1][0] += self.size[0]
+                    
+                elif direction == 'up':
+                    check_pos[0][1] -= 1
+                elif direction == 'left':
+                    check_pos[0][0] -= 1
+                elif direction == 'right':
+                    check_pos[0][0] += self.size[0]
+
+                self.tile = [tilemap.solid_check(check_pos[0]), tilemap.solid_check(check_pos[1])]
                 self.last_collision_direction = direction
 
-                if self.tile:
-                    if self.tile['tile_id'] in ['32', '40']:
+                if self.tile[0] and self.tile[1]:
+                    if self.tile[0]['tile_id'] in ['32', '40'] or self.tile[1]['tile_id'] in ['32', '40']:
                         self.death = True
                         self.game.transition = 30
                         self.game.death_timer = 0 
@@ -154,9 +158,10 @@ class Player(PhysicsEntity):
                 if last_direction is None:
                     last_direction = direction
 
-        if self.last_tile:
-            if (self.last_tile['tile_id'] == '38' and self.last_tile != self.tile) or (self.last_tile['tile_id'] == '38' and self.velocity[1] <= -2.5):
-                original_pos = self.last_tile['pos'].copy()
+        if self.last_tile and self.last_tile[0]:
+           
+            if (self.last_tile[0]['tile_id'] == '38' and self.last_tile[0] != self.tile[0]) or (self.last_tile[0]['tile_id'] == '38' and self.velocity[1] <= -2.5):
+                original_pos = self.last_tile[0]['pos'].copy()
                 tile_loc = f"{original_pos[0]};{original_pos[1]}"
                 if tile_loc in tilemap.tilemap:
                     tilemap.tilemap[tile_loc]['tile_id'] = '40'
