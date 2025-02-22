@@ -32,10 +32,10 @@ class SkillsUI(UI):
         self.hover_end_time = 0 
         self.active = True
 
-    def render(self, surf, mpos):
+    def render(self, surf, pressed):
         current_time = pygame.time.get_ticks()
         
-        if mpos == 'pressed' or self.rect.collidepoint(mpos):
+        if pressed == 'pressed':
             self.hover = True
             self.hover_end_time = current_time + 40
         elif current_time < self.hover_end_time:
@@ -107,17 +107,15 @@ class BuffUI(UI):
         
         self.name = name
         
-        self.create_duration = 0.3  # Duration of the appear animation
-        self.dissapear_duration = 0.25  # Duration of the disappear animation
+        self.create_duration = 0.3  
+        self.dissapear_duration = 0.25  
 
         self.target_x = 0
         self.move_speed = 0.1
         self.move_speed_2 = 0.5
         
         self.end = False
-        self.clearing = False  # New flag to indicate the buff is being cleared
-        
-        self.font = pygame.font.Font("data/texts/LuckiestGuy-Regular.ttf", 9)
+        self.clearing = False  
 
     def render(self, surf, index):
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
@@ -129,7 +127,7 @@ class BuffUI(UI):
             self.target_x = index * self.width
             self.x += (self.target_x - self.x) * self.move_speed
 
-        if self.active or self.clearing:  # Allow rendering during the clearing animation
+        if self.active or self.clearing:
             current_time = pygame.time.get_ticks()
 
             if self.kd_time == 0:

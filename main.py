@@ -8,43 +8,38 @@ from scripts.buff import *
 from scripts.shaders import Shader
 from scripts.particles import Particle, load_particle_images
 
-screenshot_effect = False
-effect_duration = 100 
-effect_start_time = 0
+pygame.init()
 
+FONT = pygame.font.SysFont('data/texts/BoutiqueBitmap9x9_1.9.ttf', 24)
 class Game():
     def __init__(self):
-        pygame.init()
-        
-        self.font = pygame.font.SysFont('data/texts/BoutiqueBitmap9x9_1.9.ttf', 24)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.OPENGL | pygame.DOUBLEBUF)
+        pygame.display.set_caption('peak')
         
         self.main_shader = Shader('shader', ['game_shader', 'ui_shader'])
-
-        self.display_width, self.display_height = 384, 216
         
-        self.display = pygame.Surface((self.display_width, self.display_height))
+        # SET DISPLAY WIDTH, HEIGHT
+        self.display = pygame.Surface((384, 216))
 
-        self.main_surf = pygame.Surface((self.display_width, self.display_height))
-        self.decoration_surf = pygame.Surface((self.display_width, self.display_height))
-        self.ui_surf = pygame.Surface((960, 540))
+        self.displays = {
+            'main': self.display.copy(),
+            'decoration': self.display.copy(),
+            'ui': pygame.Surface((960, 540)),
+        }
+        
+        self.scenes = {
+            'current': 'menu',
+            'sub_scene': 'menu'
+        }
+        
+        self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
+        
+        self.noise = {'cof': 1.0, 'target_cof': 1.0, 'speed': 0.025}
         
         self.clock = pygame.time.Clock()
         self.movement = [False, False]
-
-        self.noise_cof = 1.0
-        self.target_noise_cof = 1.0 
-        self.noise_transition_speed = 0.025
         
-        self.last_save_time = time.time()
-        self.save_interval = 300
-        
-        self.screen_shake = 0 
-        
-        self.rotate_tiles = {}
         self.checkpoint = [180, 100]
-        
-        load_particle_images('data/assets/particles')
         
         self.animations = {
             'player/idle': Animation('data/assets/Animations/Player/idle/anim1.png', img_dur=30),
@@ -60,41 +55,49 @@ class Game():
         }
         
         self.player = Player(self, (50, 50), (8, 15))
-        
-        self.tileset = Tileset("data/assets/map_tiles/test_map/tileset.png", 16).load_tileset()
-                
-        self.tilemap = Tilemap(self, tile_size=16)
-        
+        self.death_count = 0
         self.particles = []
         
-        self.level = 'map'
-        self.load_level(self.level)
+        self.map = {
+            'name': 'map',
+            'tileset': Tileset("data/assets/map_tiles/test_map/tileset.png", 16).load_tileset(),
+            'tilemap': Tilemap(tile_size=16),
+            'rotatesset': {} 
+        }
         
-        pygame.display.set_caption('stupid-questions')
+        self.death_vfx_timer = 0
         
+        self.screenshot_vfx = {
+            'enabled': False,
+            'duration': 2000,
+            'alpha': 250,
+            'start_time': 0
+        }
+        
+        self.transition_vfx = {
+            'value': 0,
+            'speed': 1,
+        }
+        
+        self.anomaly_text_vfx = {
+            'enabled': False,
+            'alpha': 0,
+            'timer': 0,
+            'duration': 2000,
+        }
+        
+        load_particle_images('data/assets/particles')
+        self.load_level(self.map['name'])
         self.t = 0
         
-        self.screenshot_effect = False
-        self.effect_duration = 2000
-        self.effect_start_time = 0
-        
-        self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
+        self.anomaly_near = False
 
-        self.transition = 30 
-        self.death_transition = 0
-        self.transition_speed = 1 
-        
-        self.death_timer = 0
-        self.death_count = 0
-        
-        self.anomaly_on_screen = False
-
-        self.screen_off = False 
         self.load_data()
 
+    # FUNCTIONS
     def load_level(self, level_name):
-        self.tilemap.load('data/levels/' + level_name + '.json')
-        self.rotate_tiles = {}
+        self.map['tilemap'].load('data/levels/' + level_name + '.json')
+        self.map['rotateset'] = {}
 
         self.anomaly_positions = [
             (355, 177),
@@ -111,24 +114,21 @@ class Game():
 
         self.player.death = False
         self.player = Player(self, self.checkpoint, (8, 15)) 
-        self.transition = 30 
-        self.death_timer = 0 
+        self.transition_vfx['value'] = 30 
+        self.death_vfx_timer = 0 
         
         self.scroll = [0, 0]
         self.render_scroll = [0,0]
-        
-        self.screen_color = [0,0,0]
-    
+
     def save_data(self):
         data = {
             'player_pos': list(self.player.pos),
             'checkpoint': list(self.checkpoint),
             'death_count': self.death_count,
-            'tilemap': self.tilemap.tilemap,
-            'level': self.level,
-            'rotate_tiles': self.rotate_tiles,
+            'tilemap': self.map['tilemap'].tilemap,
+            'level': self.map['name'],
+            'rotate_tiles': self.map['rotateset'],
             'scroll': self.scroll
-            
         }
         
         with open("data/saves/save.json", "w") as outfile:
@@ -144,12 +144,12 @@ class Game():
                     
                     self.checkpoint = data.get('checkpoint', self.checkpoint)
                     self.death_count = data.get('death_count', self.death_count)
-                    self.level = data.get('level', self.level)
+                    self.map['name'] = data.get('level', self.map['name'])
                     
-                    self.load_level(self.level)
+                    self.load_level(self.map['name'])
                     
-                    self.tilemap.tilemap = data.get('tilemap', self.tilemap.tilemap)
-                    self.rotate_tiles = data.get('rotate_tiles', self.rotate_tiles)
+                    self.map['tilemap'].tilemap = data.get('tilemap', self.map['tilemap'].tilemap)
+                    self.map['rotateset'] = data.get('rotate_tiles', self.map['rotateset'])
                     self.scroll = data.get('scroll', self.scroll)
                     self.player.pos = data.get('player_pos', self.player.pos)
                     
@@ -158,61 +158,60 @@ class Game():
 
     def is_anomaly_near(self):
         for pos in self.anomaly_positions:
-            if pos[0]-self.scroll[0] < self.display_width and pos[1]-self.scroll[1] < self.display_height:
+            if pos[0]-self.scroll[0] < self.display.get_width() and pos[1]-self.scroll[1] < self.display.get_height():
                 if  pos[0]-self.scroll[0] > 0 and pos[1]-self.scroll[1] > 0:
                     return pos
         return False
 
-    def run(self):
-        text_alpha = 0 
-        text_timer = 0 
-        text_duration = 2000 
-        anomaly_finder_text = False
-        
-        flash_alpha = 250
+    def draw_text(self, text, surface, y_offset=0):
+        text_surface = FONT.render(text, True, (254, 254, 254))
+        text_rect = text_surface.get_rect(center=(surface.get_width()//2, surface.get_height()//2 + y_offset))
+        surface.blit(text_surface, text_rect)
 
-        while True:
+
+    # GAME
+    def game(self):
+
+        while self.scenes['current'] == 'game':
             self.t += self.clock.get_time() / 1000
-            
-            current_time = time.time()
-            if current_time - self.last_save_time >= self.save_interval:
-                self.save_data()
-                self.last_save_time = current_time
 
-            if self.anomaly_on_screen:
-                self.target_noise_cof = 1.5
+            #  NOISE
+            self.anomaly_near = self.is_anomaly_near()
+            
+            if self.anomaly_near:
+                self.noise['target_cof'] = 1.5
                 
-                if self.anomaly_on_screen == [2299, -719]:
-                    self.target_noise_cof = 3
+                if self.anomaly_near == [2299, -719]:
+                    self.noise['target_cof'] = 3
                  
             else:
-                self.target_noise_cof = 1.0 
+                self.noise['target_cof'] = 1.0 
                 
-            self.noise_cof += (self.target_noise_cof - self.noise_cof) * self.noise_transition_speed
+            self.noise['cof'] += (self.noise['target_cof'] - self.noise['cof']) * self.noise['speed']
             
-            self.ui_surf.fill((0,0,0))
-            self.main_surf.fill((0, 0, 0))
-            self.decoration_surf.fill((0, 0, 0))
+            
+            # DISPLAYS
+            self.displays['ui'].fill((0,0,0))
+            self.displays['main'].fill((0, 0, 0))
+            self.displays['decoration'].fill((0, 0, 0))
             
             self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 25
             self.scroll[1] += ((self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1])-25) / 25
             self.render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
             
-            mpos = pygame.mouse.get_pos()
-            
-            self.tilemap.render(
-                self.main_surf,
-                self.decoration_surf,
-                self.tileset,
-                self.rotate_tiles,
+            self.map['tilemap'].render(
+                self.displays['main'],
+                self.displays['decoration'],
+                self.map['tileset'],
+                self.map['rotateset'],
                 offset=self.render_scroll
             )
             
-            tilemap_surf = self.main_surf.copy().convert_alpha()
+            tilemap_surf = self.displays['main'].copy().convert_alpha()
             tilemap_surf.set_colorkey((0,0,0))
             
-            
-            if 0 <= self.player.pos[0] - self.scroll[0] < self.main_surf.get_width() and 0 <= self.player.pos[1] - self.scroll[1] + 1 < self.main_surf.get_height():
+            # PARTICLES
+            if 0 <= self.player.pos[0] - self.scroll[0] < self.displays['main'].get_width() and 0 <= self.player.pos[1] - self.scroll[1] + 1 < self.displays['main'].get_height():
                 if self.player.action == 'run':
                     for i in range(random.randint(1,3)):
                         if random.randint(1,20) == 1:
@@ -222,7 +221,7 @@ class Game():
                             elif random.randint(1,25) == 5:
                                 particle_color = (140,140,140)
                             else:
-                                particle_color = self.main_surf.get_at((self.player.pos[0] + self.player.size[0] - self.scroll[0], self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1))
+                                particle_color = self.displays['main'].get_at((self.player.pos[0] + self.player.size[0] - self.scroll[0], self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1))
                             
                             self.particles.append(
                                 Particle(
@@ -238,9 +237,6 @@ class Game():
                             
                 if self.player.action == 'land':
                     
-                    if self.screen_shake < 5:
-                        self.screen_shake = 5
-                    
                     for i in range(random.randint(1,2)):
                         if i == 1:
                             if random.randint(1,10) == 5:
@@ -248,9 +244,9 @@ class Game():
                             else:
                                 x = self.player.pos[0] + self.player.size[0] - self.scroll[0]
                                 y = self.player.pos[1] + self.player.size[1] - self.scroll[1] + 1
-                                width, height = self.main_surf.get_size()
+                                width, height = self.displays['main'].get_size()
                                 if 0 <= x < width and 0 <= y < height:
-                                    particle_color = self.main_surf.get_at((x, y))
+                                    particle_color = self.displays['main'].get_at((x, y))
                                 else:
                                     particle_color = (0, 0, 0, 0) 
                             
@@ -309,47 +305,39 @@ class Game():
                                     particle_color,
                                     alpha=200
                                 ))
-            
-            if self.screen_shake > 0:
-                self.screen_shake -= 1
-                self.scroll[0] += random.randint((self.screen_shake//5) * -1, (self.screen_shake//5))
-                self.scroll[1] += random.randint((self.screen_shake//5) * -1, (self.screen_shake//5))
                         
             for particle in self.particles[:]:
                 particle.update(self.clock.get_time() / 45)
                 
             for particle in self.particles:
-                particle.draw(self.main_surf, self.scroll)
+                particle.draw(self.displays['main'], self.scroll)
                 
-            self.main_surf.blit(tilemap_surf)
+            self.displays['main'].blit(tilemap_surf)
 
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
-            self.player.render(self.main_surf, offset=self.render_scroll)
+            # PLAYER
+            self.player.update(self.map['tilemap'], (self.movement[1] - self.movement[0], 0))
+            self.player.render(self.displays['main'], offset=self.render_scroll)
             
-            display_mask = pygame.mask.from_surface(self.display)
-            display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
-            
-            for offset in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                self.display.blit(display_sillhouette, offset)
-            
-            for name, buff in self.player.buffs.items():
-                buff.activate_effect()
-            
+            # EVENTS
             for event in pygame.event.get():
                     
                 if event.type == pygame.QUIT:
-                    self.screen_off = True
-                    self.transition = 30
+                    self.scenes['sub_scene'] = 'exit'
+                    self.transition_vfx['value'] = 30
                         
                 if event.type == pygame.KEYDOWN:
 
                     if event.key == pygame.K_a:
                         self.movement[0] = True
+                        
                     if event.key == pygame.K_0:
-                        self.tilemap.load('data/levels/' + self.level + '.json')
+                        self.map['tilemap'].load('data/levels/' + self.map['name'] + '.json')
+                        
                     if event.key == pygame.K_d:
                         self.movement[1] = True
+                        
                     if event.key == pygame.K_w and self.player.velocity[1] != 0.321321:
+                        
                         if 'x2jump' in self.player.buffs:
                             self.player.jump(-1.15)
                         else:
@@ -362,161 +350,243 @@ class Game():
                         
                     if event.key == pygame.K_e and self.ui['glitch_jump'].active:
                         self.button_conditions['glitch_jump'] = True
-                        self.player.buffs['x2jump'] = Buff('x2jump', 1.5, x2jump, self.player, load_image('data/assets/spells/glitch_jump.png'))
+                        self.player.buffs['x2jump'] = Buff('x2jump', 1.5, self.player, load_image('data/assets/spells/glitch_jump.png'))
                         self.ui['glitch_jump'].active = False
                             
                     if event.key == pygame.K_f and self.ui['screenshot'].active:
                         self.button_conditions['screenshot'] = True
                         self.ui['screenshot'].active = False
-                        self.screenshot_effect = True
-                        self.effect_start_time = pygame.time.get_ticks()
+                        self.screenshot_vfx['enabled'] = True
+                        self.screenshot_vfx['start_time'] = pygame.time.get_ticks()
 
                 if event.type == pygame.KEYUP:
+                    
                     if event.key == pygame.K_q:
-                        self.button_conditions['glitch_dash'] = False
+                        self.button_conditions['glitch_dash'] = False 
                     if event.key == pygame.K_e:
                         self.button_conditions['glitch_jump'] = False
                     if event.key == pygame.K_f:
                         self.button_conditions['screenshot'] = False
+                        
                     if event.key == pygame.K_a:
                         self.movement[0] = False
                     if event.key == pygame.K_d:
                         self.movement[1] = False
-                        
-            offset_x = (self.main_surf.get_width() - self.main_surf.get_width()) // 2
-            offset_y = (self.main_surf.get_height() - self.main_surf.get_height()) // 2
+            
+            # GAME RENDER   
+            offset_x = (self.displays['main'].get_width() - self.displays['main'].get_width()) // 2
+            offset_y = (self.displays['main'].get_height() - self.displays['main'].get_height()) // 2
 
-            self.display.blit(self.main_surf, (offset_x, offset_y))
+            self.display.blit(self.displays['main'], (offset_x, offset_y))
 
-            self.decoration_surf.set_colorkey((0, 0, 0))
-            self.display.blit(self.decoration_surf, (offset_x, offset_y))
-            
-            img = self.font.render(str(int(self.clock.get_fps())), True, (255, 255, 255))
-            self.ui_surf.blit(img, (930, 10))
-            
-            self.anomaly_on_screen = self.is_anomaly_near()
-        
-            for name, obj in self.ui.items():
-                state = 'pressed' if (name in self.button_conditions and self.button_conditions[name]) else mpos
-                obj.render(self.ui_surf, state)
-            
-            for name, obj in self.player.buffs.items():
-                obj.ui.render(self.ui_surf, list(self.player.buffs).index(name))
-                if obj.ui.end:
-                    self.player.buffs = {}
-                    break
+            self.displays['decoration'].set_colorkey((0, 0, 0))
+            self.display.blit(self.displays['decoration'], (offset_x, offset_y))
             
             screen_surface = pygame.transform.scale(self.display, self.screen.get_size())
             
-            if anomaly_finder_text:
-                    if text_timer == 0:
-                        text_timer = pygame.time.get_ticks()
+            # UI RENDER
+            img = FONT.render(str(int(self.clock.get_fps())), True, (255, 255, 255))
+            self.displays['ui'].blit(img, (930, 10))
+        
+            for name, obj in self.ui.items():
+                state = 'pressed' if (name in self.button_conditions and self.button_conditions[name]) else None
+                obj.render(self.displays['ui'], state)
+            
+            for name, obj in self.player.buffs.items():
+                obj.ui.render(self.displays['ui'], list(self.player.buffs).index(name))
+                if obj.ui.end:
+                    self.player.buffs = {}
+                    break
+
+            if self.anomaly_text_vfx['enabled']:
+                    if self.anomaly_text_vfx['timer'] == 0:
+                        self.anomaly_text_vfx['timer'] = pygame.time.get_ticks()
                     
-                    elapsed_time = pygame.time.get_ticks() - text_timer
+                    elapsed_time = pygame.time.get_ticks() - self.anomaly_text_vfx['timer']
                     
-                    if elapsed_time < text_duration:
-                        if elapsed_time < text_duration / 2:
-                            text_alpha = min(255, text_alpha + 10)
+                    if elapsed_time < self.anomaly_text_vfx['duration']:
+                        if elapsed_time < self.anomaly_text_vfx['duration'] / 2:
+                            self.anomaly_text_vfx['alpha'] = min(255, self.anomaly_text_vfx['alpha'] + 10)
                         else:
-                            text_alpha = max(0, text_alpha - 10)
+                            self.anomaly_text_vfx['alpha'] = max(0, self.anomaly_text_vfx['alpha'] - 10)
                             
-                        if self.anomaly_on_screen:
-                            text_surface = self.font.render("Anomaly is near you!!!", True, (252, 3, 3))
+                        if self.anomaly_near:
+                            text_surface = FONT.render("Anomaly is near you!!!", True, (252, 3, 3))
                             
                         else:
-                            text_surface = self.font.render("Anomaly not founded", True, (255, 255, 255))
+                            text_surface = FONT.render("Anomaly not founded", True, (255, 255, 255))
                             
-                        text_surface.set_alpha(text_alpha)
+                        text_surface.set_alpha(self.anomaly_text_vfx['alpha'])
                         
-                        text_rect = text_surface.get_rect(center=(self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2 + 150))
-                        self.ui_surf.blit(text_surface, text_rect)
+                        text_rect = text_surface.get_rect(center=(self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2 + 150))
+                        self.displays['ui'].blit(text_surface, text_rect)
                         
                     else:
-                        text_timer = 0
-                        text_alpha = 0
-                        anomaly_finder_text = False
+                        self.anomaly_text_vfx['timer'] = 0
+                        self.anomaly_text_vfx['alpha'] = 0
+                        self.anomaly_text_vfx['enabled'] = False
                     
             
-            if self.screenshot_effect:
+            if self.screenshot_vfx['enabled']:
                 current_time = pygame.time.get_ticks()
-                elapsed_time = current_time - self.effect_start_time
+                elapsed_time = current_time - self.screenshot_vfx['start_time']
                 
-                if elapsed_time < self.effect_duration:
+                if elapsed_time < self.screenshot_vfx['duration']:
                     
-                    self.ui_surf.fill((1,0,0))
+                    self.displays['ui'].fill((1,0,0))
                     
-                    progress = elapsed_time / self.effect_duration 
+                    progress = elapsed_time / self.screenshot_vfx['duration'] 
                 
-                    flash_alpha = int(255 * (1 - progress) ** 2) 
+                    self.screenshot_vfx['alpha'] = int(255 * (1 - progress) ** 2) 
                     
                     flash_surface = pygame.Surface(self.screen.get_size())
                     flash_surface.fill((255, 255, 255))  
-                    flash_surface.set_alpha(flash_alpha)
-                    self.ui_surf.blit(flash_surface, (0, 0)) 
+                    flash_surface.set_alpha(self.screenshot_vfx['alpha'])
+                    self.displays['ui'].blit(flash_surface, (0, 0)) 
                     
-                    if flash_alpha < 10:
-                        self.transition = 30
+                    if self.screenshot_vfx['alpha'] < 10:
+                        self.transition_vfx['value'] = 30
                     
                 else:
-                    self.screenshot_effect = False
-                    flash_alpha = 250
-                    anomaly_finder_text = True
+                    self.screenshot_vfx['enabled'] = False
+                    self.screenshot_vfx['alpha'] = 250
+                    self.anomaly_text_vfx['enabled'] = True
+                    
         
-            if self.transition:
-                transition_surf = pygame.Surface(self.ui_surf.get_size())
+            if self.transition_vfx['value']:
+                transition_surf = pygame.Surface(self.displays['ui'].get_size())
                 transition_surf.fill((1,0,0))
                 
-                if self.transition > 0:
-                    if self.player.death or flash_alpha < 10 or self.screen_off:
+                if self.transition_vfx['value'] > 0:
+                    if self.player.death or self.screenshot_vfx['alpha'] < 10 or self.scenes['sub_scene'] == 'exit':
                         pygame.draw.circle(
                             transition_surf, 
                             (255, 255, 255), 
-                            (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), 
-                            max(0, 435 - ((-30+self.transition)*-1) * 15) // (25 if self.screen_off else 1)
+                            (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), 
+                            max(0, 435 - ((-30+self.transition_vfx['value'])*-1) * 15) // (25 if self.scenes['sub_scene'] == 'exit' else 1)
                         )
 
                         transition_surf.set_colorkey((255, 255, 255))
-                        self.ui_surf.blit(transition_surf, (0, 0))
+                        self.displays['ui'].blit(transition_surf, (0, 0))
                         
-                        self.transition -= self.transition_speed * 2
+                        self.transition_vfx['value'] -= self.transition_vfx['speed'] * 2
                         
-                        if self.transition <= 0:
-                            self.transition = 0
-                            self.death_timer = pygame.time.get_ticks()
-                            
-                            if self.screen_off:
-                                self.save_data()
-                                pygame.quit()
-                                sys.exit()
+                        if self.transition_vfx['value'] <= 0:
+                            self.transition_vfx['value'] = 0
+                            self.death_vfx_timer = pygame.time.get_ticks()
+
+                            if self.scenes['sub_scene'] == 'exit':
+                                self.scenes['current'] = self.scenes['sub_scene']
+                                break 
 
                     else:
-                        pygame.draw.circle(transition_surf, (255, 255, 255), (self.ui_surf.get_width() // 2, self.ui_surf.get_height() // 2), (30 - abs(self.transition)) * 15)
+                        pygame.draw.circle(transition_surf, (255, 255, 255), (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), (30 - abs(self.transition_vfx['value'])) * 15)
                         transition_surf.set_colorkey((255, 255, 255))
-                        self.ui_surf.blit(transition_surf, (0, 0))
+                        self.displays['ui'].blit(transition_surf, (0, 0))
                         
-                        self.transition -= self.transition_speed
-                        if self.transition <= 0:
-                            self.transition = 0
+                        self.transition_vfx['value'] -= self.transition_vfx['speed']
+                        if self.transition_vfx['value'] <= 0:
+                            self.transition_vfx['value'] = 0
                             
                         
             elif self.player.death:
-                if self.death_timer > 0:
+                if self.death_vfx_timer > 0:
                     current_time = pygame.time.get_ticks()
-                    self.ui_surf.fill((1, 0, 0)) 
-                    if current_time - self.death_timer >= 250:
-                        self.load_level(self.level)
+                    self.displays['ui'].fill((1, 0, 0)) 
+                    if current_time - self.death_vfx_timer >= 250:
+                        self.load_level(self.map['name'])
                         self.death_count += 1
                         self.scroll[0] = (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) 
                         self.scroll[1] = ((self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1])-25) 
                         self.render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
             
             
-            self.main_shader.render(screen_surface, self.ui_surf, self.t,
-                                    self.noise_cof)
+            # UPDATE
+            self.main_shader.render(self.t, screen_surface, self.displays['ui'], self.noise['cof'])
+                                     
+            pygame.display.flip()
+            self.clock.tick(60)
+
+    # MAIN MENU
+    def menu(self):
+        self.scenes['sub_scene'] = 'menu'
+        self.transition_vfx['value'] = 0
+        
+        while self.scenes['current'] == 'menu':
+            self.t += self.clock.get_time() / 1000
+            self.displays['ui'].fill((1,0,0))
+            
+            self.draw_text("MAIN MENU - PRESS ENTER", self.displays['ui'])
+            
+            for event in pygame.event.get():
+                
+                    
+                if event.type == pygame.QUIT:
+                    self.scenes['sub_scene'] = 'exit'
+                    self.transition_vfx['value'] = 30
+                        
+                if event.type == pygame.KEYDOWN:
+
+                    if event.key == pygame.K_SPACE:
+                        self.scenes['sub_scene'] = 'game'
+                        self.transition_vfx['value'] = 30
+            
+            if self.transition_vfx['value']:
+                transition_surf = pygame.Surface(self.displays['ui'].get_size())
+                transition_surf.fill((10,10,10))
+
+                pygame.draw.circle(
+                    transition_surf, 
+                    (255, 255, 255), 
+                    (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), 
+                    max(0, 435 - ((-30+self.transition_vfx['value'])*-1) * 15) // (25 if self.scenes['sub_scene'] == 'exit' else 1)
+                )
+
+                transition_surf.set_colorkey((255, 255, 255))
+                self.displays['ui'].blit(transition_surf, (0, 0))
+                
+                self.transition_vfx['value'] -= self.transition_vfx['speed'] * 2
+                
+                if self.transition_vfx['value'] <= 0:
+                    self.transition_vfx['value'] = 0
+                    self.death_vfx_timer = pygame.time.get_ticks()
+                    
+                    self.scenes['current'] = self.scenes['sub_scene']
+                    break  
+                    
+            self.main_shader.render(self.t, self.displays['ui'])
             
             pygame.display.flip()
             self.clock.tick(60)
-        
-if __name__ == "__main__":
-    Game().run()
+
+    # INTRO
+    def prolog(self):
+        while True:
+            pass
     
+    # OUTRO
+    def ending(self):
+        while True:
+            pass
+
+# SCENES CONTROLL
+if __name__ == "__main__":
+    game = Game()
+
+    while True:
+        if game.scenes['current'] == 'game':
+            game.transition = 30
+            game.game()
+
+        elif game.scenes['current'] == 'menu':
+            game.menu()
+            
+        elif game.scenes['current'] == 'prologue':
+            game.prolog()
+
+        elif game.scenes['current'] == 'ending':
+            game.ending()
+            
+        elif game.scenes['current'] == 'exit':
+            sys.exit()
+            break

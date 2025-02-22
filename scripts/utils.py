@@ -1,5 +1,3 @@
-import os
-
 import pygame
 
 
@@ -7,9 +5,6 @@ def load_image(path):
     img = pygame.image.load(path).convert()
     img.set_colorkey((0, 0, 0))
     return img
-
-def lerp(a, b, t):
-    return a + (b - a) * t
 class Tileset():
     def __init__(self, tileset, tile_size):
         self.tileset = tileset
@@ -31,7 +26,6 @@ class Tileset():
                 tiles[tile_count] = tile
 
         return tiles
-
 class Animation:
     def __init__(self, path, img_dur=5, loop=True, img_size=16):
         self.loop = loop

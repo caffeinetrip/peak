@@ -41,29 +41,32 @@ class Shader:
         else:
             raise ValueError("Invalid shader index")
 
-    def render(self, surf, ui_surf, t, noise_cof):
+    def render(self, t, surf=None, ui_surf=None, noise_cof=1):
         
-        frame_tex = self.surf_to_texture(surf)
-        frame_tex.use(1)
+        if surf:
+            frame_tex = self.surf_to_texture(surf)
+            frame_tex.use(1)
 
-        program = self.programs[0]
+            program = self.programs[0]
+            
+            program['tex'].value = 1
+            program['time'].value = t
+            program['noise_cof'].value = noise_cof
+            
+            self.render_objects[0].render(mode=moderngl.TRIANGLE_STRIP)
+            
+            frame_tex.release()
         
-        program['tex'].value = 1
-        program['time'].value = t
-        program['noise_cof'].value = noise_cof
+        if ui_surf:
         
-        self.render_objects[0].render(mode=moderngl.TRIANGLE_STRIP)
-        
-        frame_tex.release()
-        
-        ui_tex = self.surf_to_texture(ui_surf)
-        ui_tex.use(0)
-        
-        program = self.programs[1]
-        
-        program['tex'].value = 0
-        program['time'].value = t
-        
-        self.render_objects[1].render(mode=moderngl.TRIANGLE_STRIP)
-        
-        ui_tex.release()
+            ui_tex = self.surf_to_texture(ui_surf)
+            ui_tex.use(0)
+            
+            program = self.programs[1]
+            
+            program['tex'].value = 0
+            program['time'].value = t
+            
+            self.render_objects[1].render(mode=moderngl.TRIANGLE_STRIP)
+            
+            ui_tex.release()

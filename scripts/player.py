@@ -1,5 +1,4 @@
 import pygame
-from scripts.utils import lerp
 
 class PhysicsEntity():
     def __init__(self, game, e_type, pos, size):
@@ -75,10 +74,9 @@ class PhysicsEntity():
 
 class DangerBlockAnimation:
     def __init__(self, game, pos, angle):
-        self.game = game
         self.angle = angle
         self.pos = list(pos)
-        self.animation = self.game.animations['danger_block/create'].copy()
+        self.animation = game.animations['danger_block/create'].copy()
         self.duration = self.animation.img_duration
         self.timer = 0
 
@@ -102,7 +100,6 @@ class Player(PhysicsEntity):
         self.move_speed = 0.1
         self.on_edge = False
         self.land_timer = 0
-        self.deaths_count = 0
         self.dash_duration = 20
         self.dash_speed = 3.0
         self.dashing = False
@@ -181,8 +178,8 @@ class Player(PhysicsEntity):
                 if self.tile[0] and self.tile[1]:
                     if self.tile[0]['tile_id'] in ['10', '22', '77', '78'] or self.tile[1]['tile_id'] in ['10', '22', '77', '78']:
                         self.death = True
-                        self.game.transition = 30
-                        self.game.death_timer = 0 
+                        self.game.transition_vfx['value'] = 39
+                        self.game.death_vfx_timer = 0 
                         return
 
         for direction in ['down', 'up', 'left', 'right']:
@@ -204,7 +201,7 @@ class Player(PhysicsEntity):
                     check_loc = f"{check_pos[0]}|{check_pos[1]}"
                     if not tilemap.tile_exists(check_pos[0], check_pos[1]):
                         tilemap.tilemap[check_loc] = {'tile_id': '17', 'pos': list(check_pos)}
-                        self.game.rotate_tiles[check_loc] = dir_angle
+                        self.game.map['rotatesset'][check_loc] = dir_angle
                         self.danger_block_animations.append(DangerBlockAnimation(self.game, check_pos, dir_angle))
 
         self.last_tile = self.tile
@@ -274,7 +271,7 @@ class Player(PhysicsEntity):
                 self.velocity[0] = min(self.velocity[0] + 0.1, 0)
                 
         for anim in self.danger_block_animations:
-            anim.render(self.game.main_surf, offset=self.game.render_scroll)
+            anim.render(self.game.displays['main'], offset=self.game.render_scroll)
             
     def jump(self, jump_power=0):
         if self.wall_slide:

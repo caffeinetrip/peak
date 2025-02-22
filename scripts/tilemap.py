@@ -6,8 +6,7 @@ NEIGHBOR_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (0, 0), (-1, 1)
 PHYSICS_TILES = []
 
 class Tilemap:
-    def __init__(self, game, tile_size=16):
-        self.game = game
+    def __init__(self, tile_size=16):
         self.tile_size = tile_size
         self.tilemap = {}
         self.decor_tiles = []
