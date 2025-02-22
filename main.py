@@ -33,6 +33,8 @@ class Game():
         self.movement = [False, False]
 
         self.noise_cof = 1.0
+        self.target_noise_cof = 1.0 
+        self.noise_transition_speed = 0.025
         
         self.last_save_time = time.time()
         self.save_interval = 300
@@ -96,6 +98,9 @@ class Game():
 
         self.anomaly_positions = [
             (355, 177),
+            [2299, -719],
+            [1069, -607],
+            [1266, -687],
         ]
 
         self.ui = {
@@ -155,7 +160,7 @@ class Game():
         for pos in self.anomaly_positions:
             if pos[0]-self.scroll[0] < self.display_width and pos[1]-self.scroll[1] < self.display_height:
                 if  pos[0]-self.scroll[0] > 0 and pos[1]-self.scroll[1] > 0:
-                    return True
+                    return pos
         return False
 
     def run(self):
@@ -173,6 +178,17 @@ class Game():
             if current_time - self.last_save_time >= self.save_interval:
                 self.save_data()
                 self.last_save_time = current_time
+
+            if self.anomaly_on_screen:
+                self.target_noise_cof = 1.5
+                
+                if self.anomaly_on_screen == [2299, -719]:
+                    self.target_noise_cof = 3
+                 
+            else:
+                self.target_noise_cof = 1.0 
+                
+            self.noise_cof += (self.target_noise_cof - self.noise_cof) * self.noise_transition_speed
             
             self.ui_surf.fill((0,0,0))
             self.main_surf.fill((0, 0, 0))

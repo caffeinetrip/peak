@@ -16,6 +16,8 @@ class PhysicsEntity():
         self.buffs = {}
         self.last_movement = [0, 0]
         self.death = False
+        
+        self.end_death = False
 
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -118,6 +120,13 @@ class Player(PhysicsEntity):
             self.animation.update()
             super().update(tilemap)
             return
+        
+        # for tile in tilemap.tiles_around(self.pos, '|'):
+        #     if tile['tile_id'] == '139':
+        #         self.velocity[1] = -2
+        #         self.velocity[0] = 0
+        #         movement = [False,False]
+        #         self.set_action('fall')
         
         super().update(tilemap, movement=movement)
 
