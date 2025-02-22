@@ -229,6 +229,11 @@ class Player(PhysicsEntity):
             if self.dash_timer <= 0:
                 self.dashing = False
                 self.velocity[0] = 0 
+            
+            if self.action != 'land':
+                self.set_action('fall')
+
+                
         else:
             if self.action == 'land':
                 self.land_timer -= 1

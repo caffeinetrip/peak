@@ -55,7 +55,7 @@ class Tilemap:
                 rects.append(pygame.Rect(tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size))
         return rects
 
-    def render(self, surf, decorations_surf, tileset, rotate_tiles, offset=(0, 0)):
+    def render(self, surf, decorations_surf, tileset, rotateset, offset=(0, 0)):
             
         for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
             for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
@@ -67,8 +67,9 @@ class Tilemap:
                 if background_loc in self.tilemap:
                     tile = self.tilemap[background_loc]
                     
-                    if background_loc in rotate_tiles:
-                        surf.blit((pygame.transform.rotate(tileset[tile['tile_id']], rotate_tiles[f'{tile['pos'][0]}|{tile['pos'][1]}'])), (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))     
+                    if background_loc in rotateset:
+                        print('')
+                        surf.blit((pygame.transform.rotate(tileset[tile['tile_id']], rotateset[f'{tile['pos'][0]}|{tile['pos'][1]}'])), (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))     
                     else:
                         surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))     
                     
