@@ -130,13 +130,19 @@ class Player(PhysicsEntity):
             super().update(tilemap)
             return
         
-        # for tile in tilemap.tiles_around(self.pos, '|'):
-        #     if tile['tile_id'] == '139':
-        #         self.velocity[1] = -2
-        #         self.velocity[0] = 0
-        #         movement = [False,False]
-        #         self.set_action('fall')
-        
+        for tile in tilemap.tiles_around(self.pos, '|'):
+            if tile['tile_id'] == '139':
+                self.velocity[1] = -2
+                self.velocity[0] = 0
+                movement = [False,False]
+                self.set_action('fall')
+                
+            if tile['tile_id'] == '140':
+                self.death = True
+                self.game.transition_vfx['value'] = 39
+                self.game.death_vfx_timer = 0 
+                self.game.scenes['sub_scene'] = 'ending'
+                
         super().update(tilemap, movement=movement)
 
         self.air_time += 1

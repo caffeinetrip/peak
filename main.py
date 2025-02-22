@@ -104,6 +104,8 @@ class Game():
         self.t = 0
         
         self.anomaly_near = False
+        
+        self.prolog_completed = False
 
         self.load_data()
 
@@ -115,6 +117,13 @@ class Game():
         self.anomaly_positions = [
             (355, 177),
             [2299, -719],
+            [2399, -719],
+            [2499, -719],
+            [2599, -719],
+            [2699, -719],
+            [2799, -719],
+            [2899, -719],
+            [2999, -719],
             [1069, -607],
             [1266, -687],
         ]
@@ -132,8 +141,6 @@ class Game():
         
         self.scroll = [0, 0]
         self.render_scroll = [0,0]
-        
-        self.prolog_completed = False
 
     def save_data(self):
         data = {
@@ -144,7 +151,7 @@ class Game():
             'level': self.map['name'],
             'rotate_tiles': self.map['rotateset'],
             'scroll': self.scroll,
-            'porolog_completed': False
+            'prolog_completed': self.prolog_completed
         }
         
         with open("data/saves/save.json", "w") as outfile:
@@ -168,7 +175,7 @@ class Game():
                     self.map['rotateset'] = data.get('rotate_tiles', self.map['rotateset'])
                     self.scroll = data.get('scroll', self.scroll)
                     self.player.pos = data.get('player_pos', self.player.pos)
-                    self.prolog_completed = data.get('prolog_completed', self.player.pos) 
+                    self.prolog_completed = data.get('prolog_completed', self.prolog_completed) 
                     
             except json.JSONDecodeError:
                 print("Warning: save.json is corrupted or empty. Initializing with default values.")
@@ -201,7 +208,7 @@ class Game():
             if self.anomaly_near:
                 self.noise['target_cof'] = 1.5
                 
-                if self.anomaly_near == [2299, -719]:
+                if self.anomaly_near[1] == -719:
                     self.noise['target_cof'] = 3
                  
             else:
@@ -498,6 +505,13 @@ class Game():
                         if self.transition_vfx['value'] <= 0:
                             self.transition_vfx['value'] = 0
                             self.death_vfx_timer = pygame.time.get_ticks()
+                            
+                            if self.scenes['sub_scene'] == 'ending':
+                                self.scenes['current'] = self.scenes['sub_scene']
+                                self.stop_music(fade_ms=2000)
+                                with open('data/saves/save.json', "w") as file:
+                                    json.dump({}, file, indent=4)
+                                break
 
                             if self.scenes['sub_scene'] == 'exit':
                                 self.scenes['current'] = self.scenes['sub_scene']
@@ -635,7 +649,7 @@ class Game():
 
         while self.scenes['current'] == 'prologue':
             self.t += self.clock.get_time() / 1000
-            self.displays['ui'].fill((2, 2, 2)) 
+            self.displays['ui'].fill((2, 2, 2))
 
             current_time = pygame.time.get_ticks()
             if current_time - last_char_time >= char_delay[0 if line_index == 0 else 1] and line_index < len(story_text):
@@ -665,26 +679,29 @@ class Game():
                 if event.type == pygame.QUIT:
                     self.scenes['sub_scene'] = 'exit'
                     self.transition_vfx['value'] = 30
-                    
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
+                
+                if not self.transition_vfx['value']:
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_SPACE:
+                            if line_index < len(story_text):
+                                current_text = story_text.copy()
+                                line_index = len(story_text)
+                            else:
+                                self.prolog_completed = True
+                                self.scenes['sub_scene'] = 'game'
+                                self.transition_vfx['value'] = 30
+                                self.stop_music(fade_ms=2000)
+                                
+                    if event.type == pygame.MOUSEBUTTONDOWN:
                         if line_index < len(story_text):
                             current_text = story_text.copy()
                             line_index = len(story_text)
                         else:
+                            self.prolog_completed = True
                             self.scenes['sub_scene'] = 'game'
                             self.transition_vfx['value'] = 30
                             self.stop_music(fade_ms=2000)
                             
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if line_index < len(story_text):
-                        current_text = story_text.copy()
-                        line_index = len(story_text)
-                    else:
-                        self.scenes['sub_scene'] = 'game'
-                        self.transition_vfx['value'] = 30
-                        self.stop_music(fade_ms=2000)
-                        
             if self.transition_vfx['value']:
                 transition_surf = pygame.Surface(self.displays['ui'].get_size())
                 transition_surf.fill((10,10,10))
@@ -703,7 +720,6 @@ class Game():
                     
                     if self.transition_vfx['value'] <= 0:
                         self.transition_vfx['value'] = 0
-                        self.death_vfx_timer = pygame.time.get_ticks()
                         
                         self.scenes['current'] = self.scenes['sub_scene']
                         break  
@@ -724,22 +740,20 @@ class Game():
     # OUTRO
     def ending(self):
         self.scenes['sub_scene'] = 'ending'
-        self.stop_music(fade_ms=2000)
+        self.stop_music(fade_ms=1)
         self.play_music(self.music['ending'], fade_ms=2000)
         
-        story_text = [
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
-        ]
+        
+        story_text = []
+        
+        if self.death_count > 1:
+            for i in range(10):
+                story_text.append(f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.")
 
+        else:
+            for i in range(10):
+                story_text.append(f"That end")
+            
         story_font = pygame.font.Font('data/texts/font_7x7.ttf', 24)
         
         current_text = [""] * len(story_text)  
@@ -802,7 +816,6 @@ class Game():
                     
                     if self.transition_vfx['value'] <= 0:
                         self.transition_vfx['value'] = 0
-                        self.death_vfx_timer = pygame.time.get_ticks()
                         
                         self.scenes['current'] = self.scenes['sub_scene']
                         break  
@@ -828,9 +841,6 @@ if __name__ == "__main__":
         
         game.transition_vfx['value'] = 30
         
-        if game.prolog_completed and game.scenes['current'] == 'prologue':
-            game.scenes['current'] = 'game'
-        
         if game.scenes['current'] == 'game':
             game.game()
 
@@ -838,7 +848,10 @@ if __name__ == "__main__":
             game.menu()
             
         elif game.scenes['current'] == 'prologue':
-            game.prologue()
+            if game.prolog_completed:
+                game.scenes['current'] = 'game'
+            else:
+                game.prologue()
 
         elif game.scenes['current'] == 'ending':
             game.ending()
