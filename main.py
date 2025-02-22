@@ -132,6 +132,8 @@ class Game():
         
         self.scroll = [0, 0]
         self.render_scroll = [0,0]
+        
+        self.prolog_completed = False
 
     def save_data(self):
         data = {
@@ -141,7 +143,8 @@ class Game():
             'tilemap': self.map['tilemap'].tilemap,
             'level': self.map['name'],
             'rotate_tiles': self.map['rotateset'],
-            'scroll': self.scroll
+            'scroll': self.scroll,
+            'porolog_completed': False
         }
         
         with open("data/saves/save.json", "w") as outfile:
@@ -165,6 +168,7 @@ class Game():
                     self.map['rotateset'] = data.get('rotate_tiles', self.map['rotateset'])
                     self.scroll = data.get('scroll', self.scroll)
                     self.player.pos = data.get('player_pos', self.player.pos)
+                    self.prolog_completed = data.get('prolog_completed', self.player.pos) 
                     
             except json.JSONDecodeError:
                 print("Warning: save.json is corrupted or empty. Initializing with default values.")
@@ -544,7 +548,6 @@ class Game():
             self.t += self.clock.get_time() / 1000
             self.displays['ui'].blit(load_image('data/background/menu.png'))
             
-            # Check if the mouse is hovering over the text
             mpos = pygame.mouse.get_pos()
             scale_x = self.displays['ui'].get_width() / self.screen.get_width()
             scale_y = self.displays['ui'].get_height() / self.screen.get_height()
@@ -563,24 +566,17 @@ class Game():
                 if event.type == pygame.QUIT:
                     self.scenes['sub_scene'] = 'exit'
                     self.transition_vfx['value'] = 30
-                    
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        self.scenes['sub_scene'] = 'game'  
-                        self.transition_vfx['value'] = 30
-                        self.stop_music(fade_ms=2000)
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if start_rect.collidepoint(mpos_display):
-                        self.scenes['sub_scene'] = 'game'
-                        self.transition_vfx['value'] = 30
-                        self.stop_music(fade_ms=2000)
+                        self.scenes['sub_scene'] = 'prologue'
+                        self.transition_vfx['value'] = 3
             
             if self.transition_vfx['value']:
                 transition_surf = pygame.Surface(self.displays['ui'].get_size())
                 transition_surf.fill((10,10,10))
                 
-                if self.scenes['sub_scene'] == 'exit' or self.scenes['sub_scene'] == 'game':
+                if self.scenes['sub_scene'] in ['exit', 'prologue']:
                     pygame.draw.circle(
                         transition_surf, 
                         (255, 255, 255), 
@@ -614,14 +610,215 @@ class Game():
             self.clock.tick(60)
             
     # INTRO
-    def prolog(self):
-        while True:
-            pass
+    def prologue(self):
+        self.scenes['sub_scene'] = 'prologue'
+        self.stop_music(fade_ms=2000)
+        
+        story_text = [
+            "Year 2043, Sydney, Australia.",
+            "Humanity’s experiments nearly erased everyone.",
+            "You survived. Anomalies are everywhere.",
+            "Find the others. Stay alive.",
+            "                    Dear NUmber 8"
+        ]
+
+        story_font = pygame.font.Font('data/texts/font_7x7.ttf', 24)
+        
+        current_text = [""] * len(story_text)  
+        char_index = 0 
+        line_index = 0 
+        char_delay = [50, 25]  
+        last_char_time = pygame.time.get_ticks()  
+
+        transition_timer = 0
+        transition_delay = 3000 
+
+        while self.scenes['current'] == 'prologue':
+            self.t += self.clock.get_time() / 1000
+            self.displays['ui'].fill((2, 2, 2)) 
+
+            current_time = pygame.time.get_ticks()
+            if current_time - last_char_time >= char_delay[0 if line_index == 0 else 1] and line_index < len(story_text):
+                if char_index < len(story_text[line_index]):
+                    current_text[line_index] += story_text[line_index][char_index]
+                    char_index += 1
+                    last_char_time = current_time
+                else:
+                    line_index += 1
+                    char_index = 0
+
+            y_offset = 200
+            for line in current_text:
+                if line: 
+                    text_surface = story_font.render(line, True, (255, 255, 255))
+                    text_rect = text_surface.get_rect(center=(self.displays['ui'].get_width() // 2, y_offset))
+                    self.displays['ui'].blit(text_surface, text_rect)
+                    y_offset += 40
+
+            if line_index >= len(story_text):
+                transition_timer += self.clock.get_time()
+                if transition_timer >= transition_delay:
+                    self.scenes['current'] = 'game'
+                    break
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.scenes['sub_scene'] = 'exit'
+                    self.transition_vfx['value'] = 30
+                    
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        if line_index < len(story_text):
+                            current_text = story_text.copy()
+                            line_index = len(story_text)
+                        else:
+                            self.scenes['sub_scene'] = 'game'
+                            self.transition_vfx['value'] = 30
+                            self.stop_music(fade_ms=2000)
+                            
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if line_index < len(story_text):
+                        current_text = story_text.copy()
+                        line_index = len(story_text)
+                    else:
+                        self.scenes['sub_scene'] = 'game'
+                        self.transition_vfx['value'] = 30
+                        self.stop_music(fade_ms=2000)
+                        
+            if self.transition_vfx['value']:
+                transition_surf = pygame.Surface(self.displays['ui'].get_size())
+                transition_surf.fill((10,10,10))
+                
+                if self.scenes['sub_scene'] in ['exit', 'game']:
+                    pygame.draw.circle(
+                        transition_surf, 
+                        (255, 255, 255), 
+                        (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), 
+                        max(0, 435 - ((-30+self.transition_vfx['value'])*-1) * 15) // (25 if self.scenes['sub_scene'] == 'exit' else 1)
+                    )
+                    transition_surf.set_colorkey((255, 255, 255))
+                    self.displays['ui'].blit(transition_surf, (0, 0))
+                    
+                    self.transition_vfx['value'] -= self.transition_vfx['speed']
+                    
+                    if self.transition_vfx['value'] <= 0:
+                        self.transition_vfx['value'] = 0
+                        self.death_vfx_timer = pygame.time.get_ticks()
+                        
+                        self.scenes['current'] = self.scenes['sub_scene']
+                        break  
+                
+                else:
+                    pygame.draw.circle(transition_surf, (255, 255, 255), (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), (30 - abs(self.transition_vfx['value'])) * 15)
+                    transition_surf.set_colorkey((255, 255, 255))
+                    self.displays['ui'].blit(transition_surf, (0, 0))
+                    
+                    self.transition_vfx['value'] -= self.transition_vfx['speed'] * 2
+                    if self.transition_vfx['value'] <= 0:
+                        self.transition_vfx['value'] = 0
+                        
+            self.main_shader.render(self.t, self.displays['ui'])
+            pygame.display.flip()
+            self.clock.tick(60)
     
     # OUTRO
     def ending(self):
-        while True:
-            pass
+        self.scenes['sub_scene'] = 'ending'
+        self.stop_music(fade_ms=2000)
+        self.play_music(self.music['ending'], fade_ms=2000)
+        
+        story_text = [
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+            f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.",
+        ]
+
+        story_font = pygame.font.Font('data/texts/font_7x7.ttf', 24)
+        
+        current_text = [""] * len(story_text)  
+        char_index = 0 
+        line_index = 0 
+        char_delay = 25
+        last_char_time = pygame.time.get_ticks()  
+
+        transition_timer = 0
+        transition_delay = 5000  
+
+        while self.scenes['current'] == 'ending':
+            self.t += self.clock.get_time() / 1000
+            self.displays['ui'].fill((2, 2, 2)) 
+
+            current_time = pygame.time.get_ticks()
+            if current_time - last_char_time >= char_delay and line_index < len(story_text):
+                if char_index < len(story_text[line_index]):
+                    current_text[line_index] += story_text[line_index][char_index]
+                    char_index += 1
+                    last_char_time = current_time
+                else:
+                    line_index += 1
+                    char_index = 0
+
+            y_offset = 25
+            for line in current_text:
+                if line: 
+                    text_surface = story_font.render(line, True, (255, 255, 255))
+                    text_rect = text_surface.get_rect(center=(self.displays['ui'].get_width() // 2, y_offset))
+                    self.displays['ui'].blit(text_surface, text_rect)
+                    y_offset += 40
+
+            if line_index >= len(story_text):
+                transition_timer += self.clock.get_time()
+                if transition_timer >= transition_delay:
+                    self.scenes['current'] = 'menu'
+                    break
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.scenes['sub_scene'] = 'exit'
+                    self.transition_vfx['value'] = 30
+                    
+            if self.transition_vfx['value']:
+                transition_surf = pygame.Surface(self.displays['ui'].get_size())
+                transition_surf.fill((10,10,10))
+                
+                if self.scenes['sub_scene'] in ['exit', 'menu']:
+                    pygame.draw.circle(
+                        transition_surf, 
+                        (255, 255, 255), 
+                        (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), 
+                        max(0, 435 - ((-30+self.transition_vfx['value'])*-1) * 15) // (25 if self.scenes['sub_scene'] == 'exit' else 1)
+                    )
+                    transition_surf.set_colorkey((255, 255, 255))
+                    self.displays['ui'].blit(transition_surf, (0, 0))
+                    
+                    self.transition_vfx['value'] -= self.transition_vfx['speed']
+                    
+                    if self.transition_vfx['value'] <= 0:
+                        self.transition_vfx['value'] = 0
+                        self.death_vfx_timer = pygame.time.get_ticks()
+                        
+                        self.scenes['current'] = self.scenes['sub_scene']
+                        break  
+                
+                else:
+                    pygame.draw.circle(transition_surf, (255, 255, 255), (self.displays['ui'].get_width() // 2, self.displays['ui'].get_height() // 2), (30 - abs(self.transition_vfx['value'])) * 15)
+                    transition_surf.set_colorkey((255, 255, 255))
+                    self.displays['ui'].blit(transition_surf, (0, 0))
+                    
+                    self.transition_vfx['value'] -= self.transition_vfx['speed'] * 2
+                    if self.transition_vfx['value'] <= 0:
+                        self.transition_vfx['value'] = 0
+                        
+            self.main_shader.render(self.t, self.displays['ui'])
+            pygame.display.flip()
+            self.clock.tick(60)
 
 # SCENES CONTROLL
 if __name__ == "__main__":
@@ -631,6 +828,9 @@ if __name__ == "__main__":
         
         game.transition_vfx['value'] = 30
         
+        if game.prolog_completed and game.scenes['current'] == 'prologue':
+            game.scenes['current'] = 'game'
+        
         if game.scenes['current'] == 'game':
             game.game()
 
@@ -638,7 +838,7 @@ if __name__ == "__main__":
             game.menu()
             
         elif game.scenes['current'] == 'prologue':
-            game.prolog()
+            game.prologue()
 
         elif game.scenes['current'] == 'ending':
             game.ending()
