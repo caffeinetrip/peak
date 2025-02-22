@@ -1,4 +1,4 @@
-import sys, pygame, random, json, time
+import sys, pygame, random, json
 from OpenGL import *
 from scripts.utils import Animation, Tileset, load_image
 from scripts.player import Player
@@ -41,6 +41,19 @@ class Game():
         
         self.checkpoint = [180, 100]
         
+        self.music = {
+            "game": 'data/music/nether.mp3',
+            "menu": 'data/music/main_menu.mp3',
+            "ending": 'data/music/final_death.mp3'
+        }
+        
+        self.sounds = {
+            'jump': pygame.mixer.Sound('data/sounds/jump.mp3'),
+            'death': pygame.mixer.Sound('data/sounds/death.mp3'),
+            'land': pygame.mixer.Sound('data/sounds/land.mp3'),
+            'dash': pygame.mixer.Sound('data/sounds/dash.mp3'),
+        }
+        
         self.animations = {
             'player/idle': Animation('data/assets/Animations/Player/idle/anim1.png', img_dur=30),
             'player/edge_idle': Animation('data/assets/Animations/Player/idle/anim2.png', img_dur=30),
@@ -49,7 +62,7 @@ class Game():
             'player/wall_slide': Animation('data/assets/Animations/Player/slide/anim1.png'),
             'player/fall': Animation('data/assets/Animations/Player/fall/anim1.png'),
             'player/land': Animation('data/assets/Animations/Player/land/anim1.png', img_dur=20, loop=False),
-            'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=20, loop=False),
+            'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=1, loop=False),
             'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=3, loop=False),
             'danger_block/create': Animation('data/assets/map_tiles/test_map/anim1.png', img_dur=7, loop=False),
         }
@@ -168,9 +181,17 @@ class Game():
         text_rect = text_surface.get_rect(center=(surface.get_width()//2, surface.get_height()//2 + y_offset))
         surface.blit(text_surface, text_rect)
 
+    def play_music(self, music_file, loops=-1, fade_ms=0):
+        pygame.mixer.music.load(music_file)
+        pygame.mixer.music.play(loops, fade_ms=fade_ms)
+
+    def stop_music(self, fade_ms=0):
+        pygame.mixer.music.fadeout(fade_ms)
 
     # GAME
     def game(self):
+        
+        self.play_music(self.music['game'], fade_ms=2000)
 
         while self.scenes['current'] == 'game':
             self.t += self.clock.get_time() / 1000
@@ -452,7 +473,11 @@ class Game():
                     self.screenshot_vfx['alpha'] = 250
                     self.anomaly_text_vfx['enabled'] = True
                     
-        
+                    if self.anomaly_near:
+                        self.player.left_channel_bust.play(self.player.sounds['anomaly_1'])
+                    else:
+                        self.player.left_channel_bust.play(self.player.sounds['anomaly_0'])
+                        
             if self.transition_vfx['value']:
                 transition_surf = pygame.Surface(self.displays['ui'].get_size())
                 transition_surf.fill((1,0,0))
@@ -477,6 +502,7 @@ class Game():
 
                             if self.scenes['sub_scene'] == 'exit':
                                 self.scenes['current'] = self.scenes['sub_scene']
+                                self.stop_music(fade_ms=2000)
                                 break 
 
                     else:
@@ -487,8 +513,8 @@ class Game():
                         self.transition_vfx['value'] -= self.transition_vfx['speed']
                         if self.transition_vfx['value'] <= 0:
                             self.transition_vfx['value'] = 0
-                            
                         
+           
             elif self.player.death:
                 if self.death_vfx_timer > 0:
                     current_time = pygame.time.get_ticks()
@@ -512,6 +538,8 @@ class Game():
         self.scenes['sub_scene'] = 'menu'
         self.transition_vfx['value'] = 0
         
+        self.play_music(self.music['menu'], fade_ms=2000)
+        
         while self.scenes['current'] == 'menu':
             self.t += self.clock.get_time() / 1000
             self.displays['ui'].fill((1,0,0))
@@ -530,6 +558,7 @@ class Game():
                     if event.key == pygame.K_SPACE:
                         self.scenes['sub_scene'] = 'game'
                         self.transition_vfx['value'] = 30
+                        self.stop_music(fade_ms=2000)
             
             if self.transition_vfx['value']:
                 transition_surf = pygame.Surface(self.displays['ui'].get_size())
@@ -545,7 +574,7 @@ class Game():
                 transition_surf.set_colorkey((255, 255, 255))
                 self.displays['ui'].blit(transition_surf, (0, 0))
                 
-                self.transition_vfx['value'] -= self.transition_vfx['speed'] * 2
+                self.transition_vfx['value'] -= self.transition_vfx['speed']
                 
                 if self.transition_vfx['value'] <= 0:
                     self.transition_vfx['value'] = 0

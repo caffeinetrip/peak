@@ -1,4 +1,5 @@
 import pygame
+from scripts.tilemap import DangerBlock as DangerBlockAnimation
 
 class PhysicsEntity():
     def __init__(self, game, e_type, pos, size):
@@ -71,25 +72,6 @@ class PhysicsEntity():
     def render(self, surf, offset=(0, 0)):
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), 
                   (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1] + 2))
-
-class DangerBlockAnimation:
-    def __init__(self, game, pos, angle):
-        self.angle = angle
-        self.pos = list(pos)
-        self.animation = game.animations['danger_block/create'].copy()
-        self.duration = self.animation.img_duration
-        self.timer = 0
-
-    def update(self):
-        self.timer += 0.1
-        self.animation.update()
-
-    def render(self, surf, offset=(0, 0)):
-        if self.timer < self.duration:
-            pygame.draw.rect(surf, (0, 0, 0), (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1], 16, 16))
-            surf.blit(pygame.transform.rotate(self.animation.img(), self.angle), 
-                      (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1]))
-
 class Player(PhysicsEntity):
     def __init__(self, game, pos, size):
         super().__init__(game, 'player', pos, size)
@@ -108,12 +90,42 @@ class Player(PhysicsEntity):
         self.tile = None
         self.danger_block_animations = []
         self.angle = 0
+        
+        # SOunds
+        self.sounds = {
+            'jump': pygame.mixer.Sound('data/sounds/jump.mp3'),
+            'death': pygame.mixer.Sound('data/sounds/death.mp3'),
+            'land': pygame.mixer.Sound('data/sounds/land.mp3' ),
+            'dash': pygame.mixer.Sound('data/sounds/dash.mp3'),
+            'anomaly_0': pygame.mixer.Sound('data/sounds/anomaly_0.mp3'),
+            'anomaly_1': pygame.mixer.Sound('data/sounds/anomaly_1.mp3'),
+            'checkpoint': pygame.mixer.Sound('data/sounds/checkpoint.mp3'),
+            'run': pygame.mixer.Sound('data/sounds/run.mp3')
+        }
+        
+        self.sounds['run'].set_volume(0.15) 
+        self.run_sound_duration = 0.3
+        self.last_run_sound_time = 0
+        
+        self.sounds['anomaly_0'].set_volume(0.3)
+        self.sounds['anomaly_1'].set_volume(0.3)
+        
+        self.sounds['land'].set_volume(0.3)
+        self.sounds['dash'].set_volume(0.25)
+        self.sounds['death'].set_volume(0.45)
+        self.sounds['jump'].set_volume(0.1)
+        self.sounds['checkpoint'].set_volume(0.005)
+        
+        self.left_channel_bust = pygame.mixer.Channel(1)
+        self.left_channel_bust.set_volume(1.075, 1.0)
 
     def update(self, tilemap, movement=(0, 0)):
         if self.death:
             if not self.death_animation_played:
                 self.set_action('death')
                 self.death_animation_played = True
+                self.left_channel_bust.play(self.sounds['death'])
+
             self.animation.update()
             super().update(tilemap)
             return
@@ -140,6 +152,7 @@ class Player(PhysicsEntity):
                 self.game.checkpoint = [tile['pos'][0] * tilemap.tile_size, tile['pos'][1] * tilemap.tile_size]
                 
                 tilemap.tilemap[str(tile['pos'][0]) + ':' + str(tile['pos'][1])]['tile_id'] = '111'
+                self.sounds['checkpoint'].play()
                 
                 for key, tile_ in tilemap.tilemap.items():
                     if tile != tile_ and tile_['tile_id'] == '111':
@@ -225,6 +238,8 @@ class Player(PhysicsEntity):
             if self.collisions['down']:
                 if self.was_falling:
                     self.set_action('land')
+                    self.sounds['land'].set_volume((self.air_time/100)*0.4)
+                    self.left_channel_bust.play(self.sounds['land'])
                     self.was_falling = False
                     self.land_timer = 10
                 self.air_time = 0
@@ -248,17 +263,22 @@ class Player(PhysicsEntity):
                 right_has_tile = any(rect.collidepoint(right_point) for rect in tilemap.physics_rects_around(self.pos))
                 self.on_edge = not (left_has_tile and right_has_tile)
 
-            if not self.wall_slide and self.land_timer == 0:
-                if self.air_time > 4:
-                    if self.was_falling:
-                        self.set_action('fall')
-                    else:
-                        self.set_action('jump')
-                elif movement[0] != 0:
-                    self.set_action('run')
-                    self.on_edge = False
+        if not self.wall_slide and self.land_timer == 0:
+            if self.air_time > 4:
+                if self.was_falling:
+                    self.set_action('fall')
                 else:
-                    self.set_action('edge_idle' if self.on_edge else 'idle')
+                    self.set_action('jump')
+            elif movement[0] != 0:
+                self.set_action('run')
+                self.on_edge = False
+
+                current_time = pygame.time.get_ticks() / 1000  
+                if current_time - self.last_run_sound_time >= self.run_sound_duration:
+                    self.left_channel_bust.play(self.sounds['run'])
+                    self.last_run_sound_time = current_time 
+            else:
+                self.set_action('edge_idle' if self.on_edge else 'idle')
 
         if movement[0] > 0 and not self.dashing:
             self.velocity[0] = min(self.velocity[0] + self.move_speed, self.move_speed)
@@ -280,21 +300,28 @@ class Player(PhysicsEntity):
                 self.velocity[1] = -2.5 + jump_power
                 self.air_time = 5
                 self.jumps = max(0, self.jumps - 1)
+                self.sounds['land'].set_volume(0.2)
+                self.left_channel_bust.play(self.sounds['land'])
                 if 'x2jump' in self.buffs:
                     self.buffs['x2jump'].ui.clear_buff()
+
                 return True    
+            
         elif self.jumps and self.action in ['edge_idle', 'idle', 'run', 'land']:
             self.velocity[1] = -3.0 + jump_power
             self.jumps -= 1
             self.air_time = 5
+            self.left_channel_bust.play(self.sounds['jump'])
             if 'x2jump' in self.buffs:
                 self.buffs['x2jump'].ui.clear_buff()
+                
             return True
     
     def dash(self):
         self.dashing = True
         self.dash_timer = self.dash_duration
         self.velocity[0] = self.dash_speed * (-1 if self.flip else 1) 
+        self.left_channel_bust.play(self.sounds['dash'])
         return True
     
     def render(self, surf, offset=(0, 0)):

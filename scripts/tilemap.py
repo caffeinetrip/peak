@@ -84,3 +84,21 @@ class Tilemap:
                     tile = self.tilemap[decor_loc]
             
                     decorations_surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
+
+class DangerBlock:
+    def __init__(self, game, pos, angle):
+        self.angle = angle
+        self.pos = list(pos)
+        self.animation = game.animations['danger_block/create'].copy()
+        self.duration = self.animation.img_duration
+        self.timer = 0
+
+    def update(self):
+        self.timer += 0.1
+        self.animation.update()
+
+    def render(self, surf, offset=(0, 0)):
+        if self.timer < self.duration:
+            pygame.draw.rect(surf, (0, 0, 0), (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1], 16, 16))
+            surf.blit(pygame.transform.rotate(self.animation.img(), self.angle), 
+                      (self.pos[0] * 16 - offset[0], self.pos[1] * 16 - offset[1]))
