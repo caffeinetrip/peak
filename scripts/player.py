@@ -116,10 +116,8 @@ class Player(PhysicsEntity):
         self.sounds['jump'].set_volume(0.1)
         self.sounds['checkpoint'].set_volume(0.005)
         
-
-        
         self.left_channel_bust = pygame.mixer.Channel(1)
-        self.left_channel_bust.set_volume(1.075, 1.0)
+        self.left_channel_bust.set_volume(2.075, 2.0)
 
     def update(self, tilemap, movement=(0, 0)):
         if self.death:

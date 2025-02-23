@@ -12,7 +12,7 @@ pygame.init()
 
 FONT = pygame.font.SysFont('data/texts/BoutiqueBitmap9x9_1.9.ttf', 24)
 class Game():
-    def __init__(self):
+    def __init__(self, scene='menu'):
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.OPENGL | pygame.DOUBLEBUF)
         pygame.display.set_caption('peak')
         
@@ -28,8 +28,8 @@ class Game():
         }
         
         self.scenes = {
-            'current': 'menu',
-            'sub_scene': 'menu'
+            'current': scene,
+            'sub_scene': scene
         }
         
         self.button_conditions = {'glitch_dash': False, 'glitch_jump': False, 'screenshot': False}
@@ -515,10 +515,8 @@ class Game():
                             if self.scenes['sub_scene'] == 'ending':
                                 self.scenes['current'] = self.scenes['sub_scene']
                                 self.stop_music(fade_ms=2000)
-                                with open('data/saves/save.json', "w") as file:
-                                    json.dump({}, file, indent=4)
                                 break
-                                print("a")
+                                
 
                             if self.scenes['sub_scene'] == 'exit':
                                 self.scenes['current'] = self.scenes['sub_scene']
@@ -759,7 +757,7 @@ class Game():
 
         else:
             for i in range(15):
-                story_text.append(f"That end")
+                story_text.append(f"That end.That end.That end.That end.That end.That end.That end.That end.That end.That end.")
             
         story_font = pygame.font.Font('data/texts/font_7x7.ttf', 24)
         
@@ -771,6 +769,10 @@ class Game():
 
         transition_timer = 0
         transition_delay = 5000  
+
+        with open('data/saves/save.json', "w") as file:
+            json.dump({}, file, indent=4)
+        self.__init__(scene='ending')
 
         while self.scenes['current'] == 'ending':
             self.t += self.clock.get_time() / 1000
