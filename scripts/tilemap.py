@@ -86,11 +86,11 @@ class Tilemap:
             
                     decorations_surf.blit(tileset[tile['tile_id']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
 
-class DangerBlock:
-    def __init__(self, game, pos, angle):
+class AnimBlock:
+    def __init__(self, game, pos, angle, anim):
         self.angle = angle
         self.pos = list(pos)
-        self.animation = game.animations['danger_block/create'].copy()
+        self.animation = anim
         self.duration = self.animation.img_duration
         self.timer = 0
 

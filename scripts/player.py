@@ -1,5 +1,5 @@
 import pygame
-from scripts.tilemap import DangerBlock as DangerBlockAnimation
+from scripts.tilemap import AnimBlock
 
 class PhysicsEntity():
     def __init__(self, game, e_type, pos, size):
@@ -88,7 +88,7 @@ class Player(PhysicsEntity):
         self.death_animation_played = False
         self.last_tile = None
         self.tile = None
-        self.danger_block_animations = []
+        self.anim_blocks = []
         self.angle = 0
         
         # SOunds
@@ -115,6 +115,8 @@ class Player(PhysicsEntity):
         self.sounds['death'].set_volume(0.45)
         self.sounds['jump'].set_volume(0.1)
         self.sounds['checkpoint'].set_volume(0.005)
+        
+
         
         self.left_channel_bust = pygame.mixer.Channel(1)
         self.left_channel_bust.set_volume(1.075, 1.0)
@@ -221,13 +223,13 @@ class Player(PhysicsEntity):
                     if not tilemap.tile_exists(check_pos[0], check_pos[1]):
                         tilemap.tilemap[check_loc] = {'tile_id': '17', 'pos': list(check_pos)}
                         self.game.map['rotatesset'][check_loc] = dir_angle
-                        self.danger_block_animations.append(DangerBlockAnimation(self.game, check_pos, dir_angle))
+                        self.anim_blocks.append(AnimBlock(self.game, check_pos, dir_angle, self.game.animations['danger_block/create'].copy()))
 
         self.last_tile = self.tile
 
-        for anim in self.danger_block_animations:
+        for anim in self.anim_blocks:
             anim.update()
-        self.danger_block_animations = [anim for anim in self.danger_block_animations if anim.timer < anim.duration]
+        self.anim_blocks = [anim for anim in self.anim_blocks if anim.timer < anim.duration]
 
         if self.dashing:
             self.dash_timer -= 1
@@ -301,7 +303,7 @@ class Player(PhysicsEntity):
             else:
                 self.velocity[0] = min(self.velocity[0] + 0.1, 0)
                 
-        for anim in self.danger_block_animations:
+        for anim in self.anim_blocks:
             anim.render(self.game.displays['main'], offset=self.game.render_scroll)
             
     def jump(self, jump_power=0):

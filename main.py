@@ -65,6 +65,7 @@ class Game():
             'player/dash': Animation('data/assets/Animations/Player/dash/anim1.png', img_dur=1, loop=False),
             'player/death': Animation('data/assets/Animations/Player/death/anim1.png', img_dur=3, loop=False),
             'danger_block/create': Animation('data/assets/map_tiles/test_map/anim1.png', img_dur=7, loop=False),
+            'chekpoint/newpoint': Animation('data/assets/map_tiles/test_map/anim2.png', img_dur=7, loop=False),
         }
         
         self.player = Player(self, (50, 50), (8, 15))
@@ -106,6 +107,11 @@ class Game():
         self.anomaly_near = False
         
         self.prolog_completed = False
+        
+        for sound in self.sounds.values():
+            sound.set_volume(min(sound.get_volume() * 2.2, 1.0)) 
+
+        pygame.mixer.music.set_volume(min(pygame.mixer.music.get_volume() * 1.2, 1.0)) 
 
         self.load_data()
 
@@ -512,6 +518,7 @@ class Game():
                                 with open('data/saves/save.json', "w") as file:
                                     json.dump({}, file, indent=4)
                                 break
+                                print("a")
 
                             if self.scenes['sub_scene'] == 'exit':
                                 self.scenes['current'] = self.scenes['sub_scene']
@@ -747,11 +754,11 @@ class Game():
         story_text = []
         
         if self.death_count > 1:
-            for i in range(10):
+            for i in range(15):
                 story_text.append(f"Nice try. But your life had no meaning—you failed to find the exit {self.death_count} times.")
 
         else:
-            for i in range(10):
+            for i in range(15):
                 story_text.append(f"That end")
             
         story_font = pygame.font.Font('data/texts/font_7x7.ttf', 24)
